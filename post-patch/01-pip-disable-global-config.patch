@@ -1,0 +1,10 @@
+--- /a/lib/python3.11/site-packages/pip/_internal/commands/configuration.py   2023-07-11 16:49:11.345369051 +0000
++++ /b/lib/python3.11/site-packages/pip/_internal/commands/configuration.py 2023-07-11 16:49:00.705372750 +0000
+@@ -87,7 +87,7 @@
+             "--site",
+             dest="site_file",
+             action="store_true",
+-            default=False,
++            default=True,
+             help="Use the current environment configuration file only",
+         )

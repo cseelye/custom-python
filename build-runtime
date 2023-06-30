@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euETo pipefail
+shopt -s inherit_errexit
+
+PYTHON_VERSION=${PYTHON_VERSION-3.11.4}
+PACKAGE_NAME=${PACKAGE_NAME-prt_1.0.0.tgz}
+PRT_ROOT=${PRT_ROOT-/prt}
+OUTPUT_DIR=${OUTPUT_DIR-/output}
+
+# Build the python runtime
+echo "* * * Building python runtime"
+(
+export PYTHON_CONFIGURE_OPTS='--enable-optimizations --with-lto'
+export PYTHON_CFLAGS='-march=native -mtune=native'
+export PROFILE_TASK='-m test.regrtest --pgo -j0'
+time python-build ${PYTHON_VERSION} "${PRT_ROOT}"
+) 2>&1 | sed 's/^/    /'
+echo
+
+# Apply any post-patches
+for patch_file in $(find ./post-patch -type f -name "*.patch" -exec readlink -f {} \; | sort -V); do
+    echo "* * * Applying patch $(basename ${patch_file})"
+    patch -d "${PRT_ROOT}" -p2 <  "${patch_file}" 2>&1 | sed 's/^/    /'
+    echo
+done
+
+# Configure pip and install packages
+cp ./pip.conf "${PRT_ROOT}"
+for req_file in $(find ./python-requirements -type f -name "*.txt" -exec readlink -f {} \; | sort -V); do
+    echo "* * * Installing packages from $(basename ${req_file})"
+    "${PRT_ROOT}"/bin/pip install --upgrade --requirement "${req_file}" 2>&1 | sed 's/^/    /'
+    echo
+done
+
+# Create the package archive
+echo "* * * Creating package"
+tmpfile="$(mktemp)"
+tar -czf "${tmpfile}" -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
+mv "${tmpfile}" "${OUTPUT_DIR}/${PACKAGE_NAME}"
