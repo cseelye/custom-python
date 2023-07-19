@@ -3,9 +3,10 @@ set -euETo pipefail
 shopt -s inherit_errexit
 
 PYTHON_VERSION=${PYTHON_VERSION-3.11.4}
-PACKAGE_NAME=${PACKAGE_NAME-prt_1.0.0.tgz}
+PACKAGE_NAME=${PACKAGE_NAME-prt.tgz}
 PRT_ROOT=${PRT_ROOT-/prt}
 OUTPUT_DIR=${OUTPUT_DIR-/output}
+RUNTIME_VER=${RUNTIME_VER-v0}
 
 COLOR_ESC="\e["
 COLOR_OFF="${COLOR_ESC}0m"
@@ -84,6 +85,11 @@ for req_file in $(find ./python-requirements -type f -name "*.txt" -exec readlin
     echo
 done
 
+# Create a manifest
+"${PRT_ROOT}"/bin/pip list --format=json | jq '{"python_packages": .}' \
+    | jq '. += {"python_version": "'${PYTHON_VERSION}'", "runtime_version": "'${RUNTIME_VER}'"}' \
+    > "${PRT_ROOT}"/manifest.json
+
 # Create the package archive
 color ${MAGENTA} "* * * Creating package"
 tmpfile="$(mktemp)"
@@ -91,7 +97,8 @@ time (
 tar -czf "${tmpfile}" -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
 chmod +r "${tmpfile}"
 mv "${tmpfile}" "${OUTPUT_DIR}/${PACKAGE_NAME}"
-ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME}"
+cp "${PRT_ROOT}/manifest.json" "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}.manifest.json"
+ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}"*
 ) 2>&1 | indent
 
 popd &>/dev/null
