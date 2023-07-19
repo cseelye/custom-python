@@ -31,15 +31,6 @@ RUN curl https://pyenv.run | bash
 COPY pyenv_shell.sh ${PYENV_ROOT}/pyenv_shell.sh
 RUN ${PYENV_ROOT}/plugins/python-build/install.sh
 
-# # Install the specified python version
-# ARG PYTHON_VERSION
-# RUN source ${PYENV_ROOT}/pyenv_shell.sh && \
-#     time env PYTHON_CONFIGURE_OPTS='--enable-optimizations --with-lto' PYTHON_CFLAGS='-march=native -mtune=native' PROFILE_TASK='-m test.regrtest --pgo -j0' pyenv install ${PYTHON_VERSION}
-
-# # Install packages into the specified python
-# COPY pip.conf ${PYENV_ROOT}/versions/${PYTHON_VERSION}/pip.conf
-# COPY python-requirements.d/ /tmp/
-# RUN source ${PYENV_ROOT}/pyenv_shell.sh && \
-#     pyenv shell ${PYTHON_VERSION} && \
-#     for req_file in $(find /tmp/python-requirements.d/ -name "*.txt"); do pip install --upgrade --requirement "${req_file}"; done && \
-#     rm -rf /tmp/python-requirements.d
+COPY build-runtime pip.conf /builder/
+COPY post-patch /builder/post-patch/
+COPY python-requirements /builder/python-requirements/
