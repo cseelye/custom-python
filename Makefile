@@ -15,7 +15,7 @@ BUILDER_DEPS = Dockerfile build-runtime pip.conf $(wildcard post-patch/*.patch) 
 # Build the builder container image
 builder-image: .builder-image
 .builder-image: $(BUILDER_DEPS)
-	docker image build -t $(BUILDER_IMAGE_NAME) .
+	docker image build -t $(BUILDER_IMAGE_NAME) . && \
 	id=$$(docker image inspect -f '{{.Id}}' $(BUILDER_IMAGE_NAME)) && echo "$${id}" > .builder-image
 
 # Build the runtime package
