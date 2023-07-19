@@ -7,33 +7,92 @@ PACKAGE_NAME=${PACKAGE_NAME-prt_1.0.0.tgz}
 PRT_ROOT=${PRT_ROOT-/prt}
 OUTPUT_DIR=${OUTPUT_DIR-/output}
 
+COLOR_ESC="\e["
+COLOR_OFF="${COLOR_ESC}0m"
+COLOR_BOLD="${COLOR_ESC}1m"
+COLOR_FAINT="${COLOR_ESC}2m"
+RESET="\e[39;49;00m"
+BLACK="${COLOR_ESC}30m$COLOR_BOLD"
+RED="${COLOR_ESC}31m$COLOR_BOLD"
+GREEN="${COLOR_ESC}32m$COLOR_BOLD"
+YELLOW="${COLOR_ESC}33m$COLOR_BOLD"
+BLUE="${COLOR_ESC}34m$COLOR_BOLD"
+MAGENTA="${COLOR_ESC}35m$COLOR_BOLD"
+CYAN="${COLOR_ESC}36m$COLOR_BOLD"
+WHITE="${COLOR_ESC}37m$COLOR_BOLD"
+
+color() {
+    echo -e "${1}${2}${COLOR_OFF}"
+}
+indent() {
+    spaces=${1-4}
+    sed -u "s/^/$(printf "%${spaces}s")/";
+}
+
+log() {
+    if [[ $# -eq 0 ]] ; then
+        while IFS= read -r line ; do
+            # printf "$(date) | %s\n" "${line}"
+            echo "$(date) | ${line}"
+        done
+    else
+        echo "$(date) | $@"
+    fi
+}
+
+delay_shutdown() {
+    # This is a hack to allow a little time for the log function to finish and flush stdout
+    #    before the script exits and container shuts down
+    sleep 0.5
+}
+trap delay_shutdown EXIT ERR
+
+# Redirect all stdout/stderr from here on, to the log function
+exec &> >(log)
+
+# Change to the directory the script file is in
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+pushd "${SCRIPT_DIR}" &>/dev/null
+
+color ${CYAN} "===================================================="
+color ${CYAN} "              Building Python Runtime               "
+color ${CYAN} "===================================================="
+echo
+
 # Build the python runtime
-echo "* * * Building python runtime"
+color ${MAGENTA} "* * * Building base python runtime version ${PYTHON_VERSION}"
 (
 export PYTHON_CONFIGURE_OPTS='--enable-optimizations --with-lto'
 export PYTHON_CFLAGS='-march=native -mtune=native'
 export PROFILE_TASK='-m test.regrtest --pgo -j0'
 time python-build ${PYTHON_VERSION} "${PRT_ROOT}"
-) 2>&1 | sed 's/^/    /'
+) 2>&1 | indent
 echo
 
 # Apply any post-patches
 for patch_file in $(find ./post-patch -type f -name "*.patch" -exec readlink -f {} \; | sort -V); do
-    echo "* * * Applying patch $(basename ${patch_file})"
-    patch -d "${PRT_ROOT}" -p2 <  "${patch_file}" 2>&1 | sed 's/^/    /'
+    color ${MAGENTA} "* * * Applying patch $(basename ${patch_file})"
+    ( time patch -d "${PRT_ROOT}" -p2 <  "${patch_file}" ) 2>&1 | indent
     echo
 done
 
-# Configure pip and install packages
+# Configure pip and install python packages
 cp ./pip.conf "${PRT_ROOT}"
 for req_file in $(find ./python-requirements -type f -name "*.txt" -exec readlink -f {} \; | sort -V); do
-    echo "* * * Installing packages from $(basename ${req_file})"
-    "${PRT_ROOT}"/bin/pip install --upgrade --requirement "${req_file}" 2>&1 | sed 's/^/    /'
+    color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
+    ( time "${PRT_ROOT}"/bin/pip install --upgrade --requirement "${req_file}" ) 2>&1 | indent
     echo
 done
 
 # Create the package archive
-echo "* * * Creating package"
+color ${MAGENTA} "* * * Creating package"
 tmpfile="$(mktemp)"
+time (
 tar -czf "${tmpfile}" -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
+chmod +r "${tmpfile}"
 mv "${tmpfile}" "${OUTPUT_DIR}/${PACKAGE_NAME}"
+ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME}"
+) 2>&1 | indent
+
+popd &>/dev/null
+exit 0
