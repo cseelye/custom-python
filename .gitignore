@@ -1,6 +1,7 @@
 runtime*
 .builder-image
 *.tgz
+*.manifest.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
