@@ -4,7 +4,7 @@ PACKAGE_VERSION ?= $(shell git tag --list 'v*' | sort -V | tail -n1 || echo v0)
 PYTHON_VERSION ?= 3.11.4
 PRT_ROOT ?= /prt
 BUILDER_IMAGE_NAME ?= prt-builder
-TEST_IMAGE_NAME ?= prt-test
+TEST_IMAGE_NAME ?= prt-tester
 
 PACKAGE_NAME ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION).tgz
 INTERACTIVE = $(shell if tty -s; then echo "-it"; else echo ""; fi)
