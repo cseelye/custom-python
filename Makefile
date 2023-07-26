@@ -23,6 +23,11 @@ package: $(PACKAGE_NAME)
 $(PACKAGE_NAME): .builder-image build-runtime
 	docker container run $(INTERACTIVE) --rm -v $(shell pwd):/output -w /output -e OUTPUT_DIR=/output -e PACKAGE_NAME=$(PACKAGE_NAME) -e PYTHON_VERSION=$(PYTHON_VERSION) $(BUILDER_IMAGE_NAME) ./build-runtime
 
+# Test the runtime in a fresh container image
+test: $(PACKAGE_NAME)
+	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) ./test-runtime
+
 # Test the package by installing it into a fresh container
 test-install: $(PACKAGE_NAME)
 	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
@@ -33,6 +38,8 @@ clobber: clean
 clean:
 	$(RM) .builder-image
 	docker image rm $(BUILDER_IMAGE_NAME) $(TEST_IMAGE_NAME) || true
+	$(RM) $(PACKAGE_PREFIX)_*.tgz
+	$(RM) $(PACKAGE_PREFIX)_*.json
 
 # Color variables
 STYLE_REG=0

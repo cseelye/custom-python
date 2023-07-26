@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euETo pipefail
+shopt -s inherit_errexit
+
+PRT_ROOT=${PRT_ROOT-/prt}
+
+# Test that python runs and reports the correct version
+expected_ver=$(cat ${PRT_ROOT}/manifest.json | jq -r .python_version)
+actual_ver=$(${PRT_ROOT}/bin/python --version | awk '{print $2}')
+echo "Expected version=${expected_ver}, actual version=${actual_ver}"
+if [[ "${actual_ver}" != "${expected_ver}" ]]; then
+    echo "Python version does not match"
+    exit 1
+fi
+
+# Test importing a few packages
+package_list=( lifecycle_sdk fastapi pydantic numpy yaml)
+# Test that we can import each package
+for lib in "${package_list[@]}"; do
+    ( set -x; ${PRT_ROOT}/bin/python -c "import ${lib}" )
+done

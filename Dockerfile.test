@@ -4,4 +4,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG PRT_PACKAGE=prt_1.0.0.tgz
 ARG PRT_ROOT=/prt
 
+RUN apt update && apt install -y openssl jq
+
 ADD ${PRT_PACKAGE} ${PRT_ROOT}/

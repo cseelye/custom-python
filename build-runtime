@@ -7,6 +7,7 @@ PACKAGE_NAME=${PACKAGE_NAME-prt.tgz}
 PRT_ROOT=${PRT_ROOT-/prt}
 OUTPUT_DIR=${OUTPUT_DIR-/output}
 RUNTIME_VER=${RUNTIME_VER-v0}
+CACHE_URL=http://localhost:9000/prt/cache
 
 COLOR_ESC="\e["
 COLOR_OFF="${COLOR_ESC}0m"
@@ -60,20 +61,31 @@ color ${CYAN} "              Building Python Runtime               "
 color ${CYAN} "===================================================="
 echo
 
-# Build the python runtime
 color ${MAGENTA} "* * * Building base python runtime version ${PYTHON_VERSION}"
-(
-export PYTHON_CONFIGURE_OPTS='--enable-optimizations --with-lto'
-export PYTHON_CFLAGS='-march=native -mtune=native'
-export PROFILE_TASK='-m test.regrtest --pgo -j0'
-time python-build ${PYTHON_VERSION} "${PRT_ROOT}"
-) 2>&1 | indent
+( time (
+mkdir -p "${PRT_ROOT}"
+# Try to download a cached build of python
+if curl -fsSL --head ${CACHE_URL}/prt_python_${PYTHON_VERSION}.tgz &>/dev/null; then
+    echo "Downloading cached python ${PYTHON_VERSION}"
+    curl -fsSL ${CACHE_URL}/prt_python_${PYTHON_VERSION}.tgz -o /tmp/python.tgz
+    tar -xzf /tmp/python.tgz -C "${PRT_ROOT}"
+else
+# Build the python runtime
+    export PYTHON_CONFIGURE_OPTS='--enable-optimizations --with-lto'
+    export PYTHON_CFLAGS='-march=native -mtune=native'
+    export PROFILE_TASK='-m test.regrtest --pgo -j0'
+    python-build ${PYTHON_VERSION} "${PRT_ROOT}"
+    echo "Updating cache"
+    tar -czf /tmp/prt_python_${PYTHON_VERSION}.tgz -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
+    mv /tmp/prt_python_${PYTHON_VERSION}.tgz "${OUTPUT_DIR}/"
+fi
+) ) 2>&1 | indent
 echo
 
 # Apply any post-patches
 for patch_file in $(find ./post-patch -type f -name "*.patch" -exec readlink -f {} \; | sort -V); do
     color ${MAGENTA} "* * * Applying patch $(basename ${patch_file})"
-    ( time patch -d "${PRT_ROOT}" -p2 <  "${patch_file}" ) 2>&1 | indent
+    ( time patch -d "${PRT_ROOT}" -p2 < "${patch_file}" ) 2>&1 | indent
     echo
 done
 
@@ -81,7 +93,7 @@ done
 cp ./pip.conf "${PRT_ROOT}"
 for req_file in $(find ./python-requirements -type f -name "*.txt" -exec readlink -f {} \; | sort -V); do
     color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
-    ( time "${PRT_ROOT}"/bin/pip install --upgrade --requirement "${req_file}" ) 2>&1 | indent
+    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --requirement "${req_file}" ) 2>&1 | indent
     echo
 done
 
