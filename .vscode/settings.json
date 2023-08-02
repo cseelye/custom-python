@@ -1,0 +1,19 @@
+{
+    "telemetry.telemetryLevel": "off",
+    "editor.rulers": [
+        120
+    ],
+    "editor.trimAutoWhitespace": true,
+    "files.trimTrailingWhitespace": true,
+    "files.trimFinalNewlines": true,
+    "[yaml]": {
+        "editor.tabSize": 2
+    },
+    "terminal.integrated.scrollback": 10000,
+    "editor.formatOnSave": true,
+    "github.gitAuthentication": false,
+    "extensions.ignoreRecommendations": true,
+    "[dockerfile]": {
+        "editor.formatOnSave": false
+    },
+}
