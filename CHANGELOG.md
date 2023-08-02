@@ -5,6 +5,12 @@ All notable changes to the runtime will be documented in this file. Versioning f
 
 ## [Unreleased]
 
+## [v5] - 2023-08-02
+### Added
+* Add test for manifest file
+### Fixed
+* Fix arm64 test container launch
+
 ## [v4] - 2023-08-02
 ### Added
 * ARM64 builds
