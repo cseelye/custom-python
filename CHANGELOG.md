@@ -5,6 +5,12 @@ All notable changes to the runtime will be documented in this file. Versioning f
 
 ## [Unreleased]
 
+## [v4] - 2023-08-02
+### Added
+* ARM64 builds
+### Changed
+* Use cached build artifacts when possible to speed up overall build process
+
 ## [v3] - 2023-07-26
 ### Added
 * Add basic tests
@@ -13,5 +19,5 @@ All notable changes to the runtime will be documented in this file. Versioning f
 ### Fixed
 * Fix packages being installed to user instead of site
 
-## [v1]
+## [v1] - 2023-07-19
 * Initial release

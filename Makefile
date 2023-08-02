@@ -5,9 +5,20 @@ PYTHON_VERSION ?= 3.11.4
 PRT_ROOT ?= /prt
 BUILDER_IMAGE_NAME ?= prt-builder
 TEST_IMAGE_NAME ?= prt-tester
-
+ARTIFACT_DIR ?= out
 PACKAGE_NAME ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION).tgz
-INTERACTIVE = $(shell if tty -s; then echo "-it"; else echo ""; fi)
+
+BUILDER_IMAGE_NAME_ARM ?= prt-builder-arm
+PACKAGE_NAME_ARM ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION)_arm64.tgz
+TEST_IMAGE_NAME_ARM ?= prt-tester-arm
+
+# Make OUTPUT_DIR an absolute path from ARTIFACT_DIR
+OUTPUT_DIR := $(shell realpath $(ARTIFACT_DIR))
+FULL_PACKAGE_NAME := $(OUTPUT_DIR)/$(PACKAGE_NAME)
+FULL_PACKAGE_NAME_ARM := $(OUTPUT_DIR)/$(PACKAGE_NAME_ARM)
+
+# Determine if make is runing interactively or in a script
+INTERACTIVE := $(shell if tty -s; then echo "-it"; else echo ""; fi)
 
 # Dependecies that should cause rebuild of the builder container image
 BUILDER_DEPS = Dockerfile build-runtime pip.conf $(wildcard post-patch/*.patch) $(wildcard python-requirements/*.txt)
@@ -18,28 +29,40 @@ builder-image: .builder-image
 	docker image build -t $(BUILDER_IMAGE_NAME) . && \
 	id=$$(docker image inspect -f '{{.Id}}' $(BUILDER_IMAGE_NAME)) && echo "$${id}" > .builder-image
 
+builder-image-arm: .builder-image-arm
+.builder-image-arm: $(BUILDER_DEPS)
+	docker image build --platform=arm64 -t $(BUILDER_IMAGE_NAME_ARM) . && \
+	id=$$(docker image inspect -f '{{.Id}}' $(BUILDER_IMAGE_NAME_ARM)) && echo "$${id}" > .builder-image-arm
+
+$(OUTPUT_DIR):
+	mkdir -p $(OUTPUT_DIR)
+
 # Build the runtime package
-package: $(PACKAGE_NAME)
-$(PACKAGE_NAME): .builder-image build-runtime
-	docker container run $(INTERACTIVE) --rm -v $(shell pwd):/output -w /output -e OUTPUT_DIR=/output -e PACKAGE_NAME=$(PACKAGE_NAME) -e PYTHON_VERSION=$(PYTHON_VERSION) $(BUILDER_IMAGE_NAME) ./build-runtime
+package: $(FULL_PACKAGE_NAME)
+$(FULL_PACKAGE_NAME): .builder-image build-runtime | $(OUTPUT_DIR)
+	docker container run $(INTERACTIVE) --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work -e PACKAGE_NAME=$(PACKAGE_NAME) -e PYTHON_VERSION=$(PYTHON_VERSION) $(BUILDER_IMAGE_NAME) ./build-runtime
+package-arm: $(FULL_PACKAGE_NAME_ARM)
+$(FULL_PACKAGE_NAME_ARM): .builder-image-arm build-runtime | $(OUTPUT_DIR)
+	docker container run $(INTERACTIVE) --platform=arm64 --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work -e PACKAGE_NAME=$(PACKAGE_NAME_ARM) -e PYTHON_VERSION=$(PYTHON_VERSION) -e MTUNE= $(BUILDER_IMAGE_NAME_ARM) ./build-runtime
 
 # Test the runtime in a fresh container image
-test: $(PACKAGE_NAME)
-	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+test: $(FULL_PACKAGE_NAME)
+	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) ./test-runtime
+test-arm: $(FULL_PACKAGE_NAME_ARM)
+	docker image build -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME_ARM) ./test-runtime
 
-# Test the package by installing it into a fresh container
-test-install: $(PACKAGE_NAME)
-	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --rm $(INTERACTIVE) $(TEST_IMAGE_NAME) $(PRT_ROOT)/bin/python --version
-
-# Cleanup everything
-clobber: clean
+# Clean: remove output files
 clean:
-	$(RM) .builder-image
-	docker image rm $(BUILDER_IMAGE_NAME) $(TEST_IMAGE_NAME) || true
-	$(RM) $(PACKAGE_PREFIX)_*.tgz
-	$(RM) $(PACKAGE_PREFIX)_*.json
+	$(RM) $(PACKAGE_PREFIX)_*.tgz  $(PACKAGE_PREFIX)_*.json cache_*
+	$(RM) -r $(OUTPUT_DIR)
+
+# Clobber: clean output files and delete build containers
+clobber: clean
+	$(RM) .builder-image*
+	docker image rm $(BUILDER_IMAGE_NAME) $(BUILDER_IMAGE_NAME_ARM) $(TEST_IMAGE_NAME) || true
+
 
 # Color variables
 STYLE_REG=0
@@ -86,10 +109,17 @@ help:
 	echo -e "$(GREEN_BOLD)Build the runtime:$(COLOR_RESET)"; \
 	echo -e "  make package                          Build the runtime and package it as a tarball in the current directory"; \
 	echo -e "  make builder-image                    Build the docker image used to build the runtime"; \
+	echo -e "  make package-arm                      Build the runtime (arm64) and package it as a tarball in the current directory"; \
+	echo -e "  make builder-image-arm                Build the docker image (arm64) used to build the runtime"; \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Testing:$(COLOR_RESET)"; \
-	echo -e "  make test-install                     Install the package in a fresh container and make sure it can be run there"; \
+	echo -e "  make test                             Install the package in a fresh container and test it"; \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Cleanup:$(COLOR_RESET)"; \
-	echo -e "  make clean                            Delete the package and the builder image"; \
+	echo -e "  make clean                            Delete the package and cache files"; \
+	echo -e "  make clobber                          Delete the package, cache files, and docker images"; \
+	echo ""; \
+	echo -e "$(GREEN_BOLD)Misc:$(COLOR_RESET)"; \
+	echo -e "  make upload-cache                     Upload the cache files to the cache server, replacing what is there."; \
+	echo ""; \
 	} | less -FKqrX

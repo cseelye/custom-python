@@ -2,12 +2,15 @@
 set -euETo pipefail
 shopt -s inherit_errexit
 
+SECONDS=0
+
 PYTHON_VERSION=${PYTHON_VERSION-3.11.4}
 PACKAGE_NAME=${PACKAGE_NAME-prt.tgz}
 PRT_ROOT=${PRT_ROOT-/prt}
 OUTPUT_DIR=${OUTPUT_DIR-/output}
 RUNTIME_VER=${RUNTIME_VER-v0}
 CACHE_URL=http://localhost:9000/prt/cache
+MTUNE=${MTUNE-icelake-server}
 
 COLOR_ESC="\e["
 COLOR_OFF="${COLOR_ESC}0m"
@@ -43,6 +46,8 @@ log() {
 }
 
 delay_shutdown() {
+    echo
+    date -ud "@$SECONDS" "+Total runtime: %Hh%Mm%Ss"
     # This is a hack to allow a little time for the log function to finish and flush stdout
     #    before the script exits and container shuts down
     sleep 0.5
@@ -57,7 +62,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 pushd "${SCRIPT_DIR}" &>/dev/null
 
 color ${CYAN} "===================================================="
-color ${CYAN} "              Building Python Runtime               "
+color ${CYAN} "        Building Python Runtime $(uname -m)"
 color ${CYAN} "===================================================="
 echo
 
@@ -65,19 +70,27 @@ color ${MAGENTA} "* * * Building base python runtime version ${PYTHON_VERSION}"
 ( time (
 mkdir -p "${PRT_ROOT}"
 # Try to download a cached build of python
-if curl -fsSL --head ${CACHE_URL}/prt_python_${PYTHON_VERSION}.tgz &>/dev/null; then
-    echo "Downloading cached python ${PYTHON_VERSION}"
-    curl -fsSL ${CACHE_URL}/prt_python_${PYTHON_VERSION}.tgz -o /tmp/python.tgz
+CACHE_FILE="cache_prt_python_${PYTHON_VERSION}_$(uname -m).tgz"
+if curl -fsSL --head ${CACHE_URL}/${CACHE_FILE} &>/dev/null; then
+    echo "Downloading cached build for python ${PYTHON_VERSION}"
+    curl -fsSL ${CACHE_URL}/${CACHE_FILE} -o /tmp/python.tgz
     tar -xzf /tmp/python.tgz -C "${PRT_ROOT}"
 else
 # Build the python runtime
     export PYTHON_CONFIGURE_OPTS='--enable-optimizations --with-lto'
-    export PYTHON_CFLAGS='-march=native -mtune=native'
+    if [[ -n ${MTUNE} ]]; then
+        export PYTHON_CFLAGS="-mtune=${MTUNE}"
+    fi
     export PROFILE_TASK='-m test.regrtest --pgo -j0'
-    python-build ${PYTHON_VERSION} "${PRT_ROOT}"
-    echo "Updating cache"
-    tar -czf /tmp/prt_python_${PYTHON_VERSION}.tgz -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
-    mv /tmp/prt_python_${PYTHON_VERSION}.tgz "${OUTPUT_DIR}/"
+    VERBOSE=""
+    if [[ -n ${CI-} || -n ${V-} ]]; then
+        VERBOSE="-v"
+    fi
+    python-build ${VERBOSE} ${PYTHON_VERSION} "${PRT_ROOT}"
+    echo "Updating python cache object"
+    tar -czf /tmp/${CACHE_FILE} -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
+    mv /tmp/${CACHE_FILE} "${OUTPUT_DIR}/"
+    ls -lh  "${OUTPUT_DIR}/${CACHE_FILE}"
 fi
 ) ) 2>&1 | indent
 echo
@@ -89,6 +102,17 @@ for patch_file in $(find ./post-patch -type f -name "*.patch" -exec readlink -f 
     echo
 done
 
+# Download the pip cache to preload it
+PIP_CACHE_FILE="cache_prt_pip_$(uname -m).tgz"
+(
+mkdir -p /root/.cache
+if curl -fsSL --head ${CACHE_URL}/${PIP_CACHE_FILE} &>/dev/null; then
+    echo "Preloading pip cache"
+    curl -fsSL ${CACHE_URL}/${PIP_CACHE_FILE} | tar -xz -C /root/.cache || true
+    echo
+fi
+) 2>&1 | indent
+
 # Configure pip and install python packages
 cp ./pip.conf "${PRT_ROOT}"
 for req_file in $(find ./python-requirements -type f -name "*.txt" -exec readlink -f {} \; | sort -V); do
@@ -96,6 +120,14 @@ for req_file in $(find ./python-requirements -type f -name "*.txt" -exec readlin
     ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --requirement "${req_file}" ) 2>&1 | indent
     echo
 done
+
+(
+echo
+echo "Updating pip cache object"
+tar -czf /tmp/${PIP_CACHE_FILE} -C /root/.cache pip
+mv /tmp/${PIP_CACHE_FILE} ${OUTPUT_DIR}/
+echo
+) 2>&1 | indent
 
 # Create a manifest
 "${PRT_ROOT}"/bin/pip list --format=json | jq '{"python_packages": .}' \
@@ -114,4 +146,5 @@ ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}"*
 ) ) 2>&1 | indent
 
 popd &>/dev/null
+
 exit 0
