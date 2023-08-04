@@ -5,6 +5,12 @@ All notable changes to the runtime will be documented in this file. Versioning f
 
 ## [Unreleased]
 
+## [v6] - 2023-08-04
+### Changed
+* Change package architecture name to match uname output
+### Added
+* Add test for pip
+
 ## [v5] - 2023-08-02
 ### Added
 * Add test for manifest file

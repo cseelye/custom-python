@@ -4,8 +4,57 @@ shopt -s inherit_errexit
 
 PRT_ROOT=${PRT_ROOT-/prt}
 
+COLOR_ESC="\e["
+COLOR_OFF="${COLOR_ESC}0m"
+COLOR_BOLD="${COLOR_ESC}1m"
+COLOR_FAINT="${COLOR_ESC}2m"
+RESET="\e[39;49;00m"
+BLACK="${COLOR_ESC}30m$COLOR_BOLD"
+RED="${COLOR_ESC}31m$COLOR_BOLD"
+GREEN="${COLOR_ESC}32m$COLOR_BOLD"
+YELLOW="${COLOR_ESC}33m$COLOR_BOLD"
+BLUE="${COLOR_ESC}34m$COLOR_BOLD"
+MAGENTA="${COLOR_ESC}35m$COLOR_BOLD"
+CYAN="${COLOR_ESC}36m$COLOR_BOLD"
+WHITE="${COLOR_ESC}37m$COLOR_BOLD"
+
+color() {
+    echo -e "${1}${2}${COLOR_OFF}"
+}
+indent() {
+    spaces=${1-4}
+    sed -u "s/^/$(printf "%${spaces}s")/";
+}
+
+log() {
+    if [[ $# -eq 0 ]] ; then
+        while IFS= read -r line ; do
+            # printf "$(date) | %s\n" "${line}"
+            echo "$(date) | ${line}"
+        done
+    else
+        echo "$(date) | $@"
+    fi
+}
+
+delay_shutdown() {
+    echo
+    date -ud "@$SECONDS" "+Total runtime: %Hh%Mm%Ss"
+    # This is a hack to allow a little time for the log function to finish and flush stdout
+    #    before the script exits and container shuts down.
+    sleep 0.5
+}
+trap 'set +x; delay_shutdown' EXIT ERR
+
+# Redirect all stdout/stderr from here on, to the log function
+exec &> >(log)
+
+
+
 # Test that python runs and reports the correct version
-echo "Testing python version"
+color ${MAGENTA} "===================================================="
+color ${MAGENTA} "               Test python version"
+color ${MAGENTA} "===================================================="
 expected_ver=$(cat ${PRT_ROOT}/manifest.json | jq -r .python_version)
 actual_ver=$(${PRT_ROOT}/bin/python --version | awk '{print $2}')
 echo "Expected version=${expected_ver}, actual version=${actual_ver}"
@@ -16,12 +65,26 @@ fi
 echo
 
 # Test the manifest is present and parsable
-echo "Testing manifest is present and readable"
+color ${MAGENTA} "===================================================="
+color ${MAGENTA} "       Test manifest is present and readable"
+color ${MAGENTA} "===================================================="
 cat "${PRT_ROOT}"/manifest.json | jq .
 echo
 
+# Test using pip
+color ${MAGENTA} "===================================================="
+color ${MAGENTA} "                    Test pip"
+color ${MAGENTA} "===================================================="
+"${PRT_ROOT}"/bin/pip --version
+"${PRT_ROOT}"/bin/pip install pip-install-test
+${PRT_ROOT}/bin/python -c "import pip_install_test"
+"${PRT_ROOT}"/bin/pip uninstall --root-user-action=ignore --yes pip-install-test
+echo
+
 # Test importing a few packages
-echo "Test importing packages"
+color ${MAGENTA} "===================================================="
+color ${MAGENTA} "              Test importing packages"
+color ${MAGENTA} "===================================================="
 package_list=( fastapi pydantic yaml )
 # Test that we can import each package
 for lib in "${package_list[@]}"; do
