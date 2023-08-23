@@ -52,7 +52,7 @@ delay_shutdown() {
     #    before the script exits and container shuts down
     sleep 0.5
 }
-trap delay_shutdown EXIT ERR
+trap 'set +x; delay_shutdown' EXIT ERR
 
 # Redirect all stdout/stderr from here on, to the log function
 exec &> >(log)
@@ -104,14 +104,12 @@ done
 
 # Download the pip cache to preload it
 PIP_CACHE_FILE="cache_prt_pip_$(uname -m).tgz"
-(
 mkdir -p /root/.cache
 if curl -fsSL --head ${CACHE_URL}/${PIP_CACHE_FILE} &>/dev/null; then
-    echo "Preloading pip cache"
+    echo ">>> Preloading pip cache"
     curl -fsSL ${CACHE_URL}/${PIP_CACHE_FILE} | tar -xz -C /root/.cache || true
     echo
 fi
-) 2>&1 | indent
 
 # Configure pip and install python packages
 cp ./pip.conf "${PRT_ROOT}"
@@ -123,7 +121,7 @@ done
 
 (
 echo
-echo "Updating pip cache object"
+echo ">>> Updating pip cache object"
 tar -czf /tmp/${PIP_CACHE_FILE} -C /root/.cache pip
 mv /tmp/${PIP_CACHE_FILE} ${OUTPUT_DIR}/
 echo

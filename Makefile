@@ -7,7 +7,7 @@ BUILDER_IMAGE_NAME ?= prt-builder
 TEST_IMAGE_NAME ?= prt-tester
 ARTIFACT_DIR ?= out
 PACKAGE_NAME ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION).tgz
-
+FILESERVER ?= localhost:/http/prt/cache
 BUILDER_IMAGE_NAME_ARM ?= prt-builder-arm
 PACKAGE_NAME_ARM ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION)_aarch64.tgz
 TEST_IMAGE_NAME_ARM ?= prt-tester-arm
@@ -53,6 +53,11 @@ test-arm: $(FULL_PACKAGE_NAME_ARM)
 	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME_ARM) ./test-runtime
 
+# Get an interactive prompt to a fresh container with the runtime installed
+run: $(FULL_PACKAGE_NAME)
+	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
+
 # Clean: remove output files
 clean:
 	$(RM) $(PACKAGE_PREFIX)_*.tgz  $(PACKAGE_PREFIX)_*.json cache_*
@@ -63,6 +68,9 @@ clobber: clean
 	$(RM) .builder-image*
 	docker image rm $(BUILDER_IMAGE_NAME) $(BUILDER_IMAGE_NAME_ARM) $(TEST_IMAGE_NAME) || true
 
+# Upload the cache files
+upload-cache:
+	scp $(OUTPUT_DIR)/cache_* ${FILESERVER}
 
 # Color variables
 STYLE_REG=0
@@ -114,6 +122,7 @@ help:
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Testing:$(COLOR_RESET)"; \
 	echo -e "  make test                             Install the package in a fresh container and test it"; \
+	echo -e "  make run                              Install the package in a fresh container and get an interactive prompt"; \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Cleanup:$(COLOR_RESET)"; \
 	echo -e "  make clean                            Delete the package and cache files"; \
