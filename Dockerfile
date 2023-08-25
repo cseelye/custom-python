@@ -34,3 +34,4 @@ RUN ${PYENV_ROOT}/plugins/python-build/install.sh
 COPY build-runtime pip.conf /builder/
 COPY post-patch /builder/post-patch/
 COPY python-requirements /builder/python-requirements/
+COPY dev /builder/dev/
