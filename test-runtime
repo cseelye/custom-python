@@ -65,6 +65,19 @@ if [[ "${actual_ver}" != "${expected_ver}" ]]; then
 fi
 echo
 
+# Test that runtime version is correct
+color ${MAGENTA} "===================================================="
+color ${MAGENTA} "               Test runtime version"
+color ${MAGENTA} "===================================================="
+expected_ver=${RUNTIME_VER}
+actual_ver=$(cat ${PRT_ROOT}/manifest.json | jq -r .runtime_version)
+echo "Expected version=${expected_ver}, actual version=${actual_ver}"
+if [[ "${actual_ver}" != "${expected_ver}" ]]; then
+    echo "Runtime version does not match"
+    exit 1
+fi
+echo
+
 # Test the manifest is present and parsable
 color ${MAGENTA} "===================================================="
 color ${MAGENTA} "       Test manifest is present and readable"

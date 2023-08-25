@@ -57,26 +57,26 @@ $(OUTPUT_DIR):
 # Build the runtime package
 package: $(FULL_PACKAGE_NAME)
 $(FULL_PACKAGE_NAME): .builder-image build-runtime | $(OUTPUT_DIR)
-	docker container run $(INTERACTIVE) --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work $(VERBOSE) $(CACHE) -e PACKAGE_NAME=$(PACKAGE_NAME) -e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV) -e PYTHON_VERSION=$(PYTHON_VERSION) $(BUILDER_IMAGE_NAME) ./build-runtime
+	docker container run $(INTERACTIVE) --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work $(VERBOSE) $(CACHE) -e RUNTIME_VER=$(PACKAGE_VERSION) -e PACKAGE_NAME=$(PACKAGE_NAME) -e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV) -e PYTHON_VERSION=$(PYTHON_VERSION) $(BUILDER_IMAGE_NAME) ./build-runtime
 package-arm: $(FULL_PACKAGE_NAME_ARM)
 $(FULL_PACKAGE_NAME_ARM): .builder-image-arm build-runtime | $(OUTPUT_DIR)
-	docker container run --platform=arm64 $(INTERACTIVE) --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work $(VERBOSE) $(CACHE) -e PACKAGE_NAME=$(PACKAGE_NAME_ARM) -e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_ARM) -e PYTHON_VERSION=$(PYTHON_VERSION) -e MTUNE= $(BUILDER_IMAGE_NAME_ARM) ./build-runtime
+	docker container run --platform=arm64 $(INTERACTIVE) --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work $(VERBOSE) $(CACHE) -e RUNTIME_VER=$(PACKAGE_VERSION) -e PACKAGE_NAME=$(PACKAGE_NAME_ARM) -e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_ARM) -e PYTHON_VERSION=$(PYTHON_VERSION) -e MTUNE= $(BUILDER_IMAGE_NAME_ARM) ./build-runtime
 $(FULL_PACKAGE_NAME_DEV): $(FULL_PACKAGE_NAME) ;
 $(FULL_PACKAGE_NAME_DEV_ARM): $(FULL_PACKAGE_NAME_ARM) ;
 
 # Test the runtime in a fresh container image
 test: $(FULL_PACKAGE_NAME)
 	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) ./test-runtime
+	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
 test-arm: $(FULL_PACKAGE_NAME_ARM)
 	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME_ARM) ./test-runtime
+	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME_ARM) ./test-runtime
 test-dev: $(FULL_PACKAGE_NAME_DEV)
 	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) ./test-runtime
+	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
 test-arm-dev: $(FULL_PACKAGE_NAME_DEV_ARM)
 	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) ./test-runtime
+	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
 
 # Get an interactive prompt to a fresh container with the runtime installed
 run: $(FULL_PACKAGE_NAME)
