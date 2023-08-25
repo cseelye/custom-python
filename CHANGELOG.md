@@ -4,6 +4,8 @@ Custom Python Runtime
 All notable changes to the runtime will be documented in this file. Versioning follows the format vX, where X is the version number.
 
 ## [Unreleased]
+### Added
+* Dev build with development tools and utils, for devcontainer use
 
 ## [v6] - 2023-08-04
 ### Changed

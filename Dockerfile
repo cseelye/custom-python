@@ -23,7 +23,7 @@ ENV LANG=en_US.UTF-8 \
 RUN apt-get update && \
     apt-get install --yes \
         ca-certificates curl git jq \
-        build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libncursesw5-dev libsqlite3-dev tk-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev libgdbm-dev libc6-dev checkinstall
+        build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libncursesw5-dev libsqlite3-dev tk-dev xz-utils libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev libgdbm-compat-dev libc6-dev checkinstall
 
 # Install pyenv
 ARG PYENV_ROOT

@@ -7,15 +7,32 @@ BUILDER_IMAGE_NAME ?= prt-builder
 TEST_IMAGE_NAME ?= prt-tester
 ARTIFACT_DIR ?= out
 PACKAGE_NAME ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION).tgz
+PACKAGE_NAME_DEV ?= $(PACKAGE_PREFIX)-dev_$(PACKAGE_VERSION).tgz
 FILESERVER ?= localhost:/http/prt/cache
 BUILDER_IMAGE_NAME_ARM ?= prt-builder-arm
 PACKAGE_NAME_ARM ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION)_aarch64.tgz
+PACKAGE_NAME_DEV_ARM ?= $(PACKAGE_PREFIX)-dev_$(PACKAGE_VERSION)_aarch64.tgz
 TEST_IMAGE_NAME_ARM ?= prt-tester-arm
+
+# Set verbose flag
+V ?= 0
+VERBOSE=
+ifeq ($(V),1)
+  VERBOSE=-e V=1
+endif
+
+# Set cache flag
+CACHE=
+ifeq ($(NO_CACHE),1)
+  CACHE=-e USE_CACHE=0
+endif
 
 # Make OUTPUT_DIR an absolute path from ARTIFACT_DIR
 OUTPUT_DIR := $(shell realpath $(ARTIFACT_DIR))
 FULL_PACKAGE_NAME := $(OUTPUT_DIR)/$(PACKAGE_NAME)
 FULL_PACKAGE_NAME_ARM := $(OUTPUT_DIR)/$(PACKAGE_NAME_ARM)
+FULL_PACKAGE_NAME_DEV := $(OUTPUT_DIR)/$(PACKAGE_NAME_DEV)
+FULL_PACKAGE_NAME_DEV_ARM := $(OUTPUT_DIR)/$(PACKAGE_NAME_DEV_ARM)
 
 # Determine if make is runing interactively or in a script
 INTERACTIVE := $(shell if tty -s; then echo "-it"; else echo ""; fi)
@@ -40,10 +57,12 @@ $(OUTPUT_DIR):
 # Build the runtime package
 package: $(FULL_PACKAGE_NAME)
 $(FULL_PACKAGE_NAME): .builder-image build-runtime | $(OUTPUT_DIR)
-	docker container run $(INTERACTIVE) --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work -e PACKAGE_NAME=$(PACKAGE_NAME) -e PYTHON_VERSION=$(PYTHON_VERSION) $(BUILDER_IMAGE_NAME) ./build-runtime
+	docker container run $(INTERACTIVE) --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work $(VERBOSE) $(CACHE) -e PACKAGE_NAME=$(PACKAGE_NAME) -e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV) -e PYTHON_VERSION=$(PYTHON_VERSION) $(BUILDER_IMAGE_NAME) ./build-runtime
 package-arm: $(FULL_PACKAGE_NAME_ARM)
 $(FULL_PACKAGE_NAME_ARM): .builder-image-arm build-runtime | $(OUTPUT_DIR)
-	docker container run --platform=arm64 $(INTERACTIVE) --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work -e PACKAGE_NAME=$(PACKAGE_NAME_ARM) -e PYTHON_VERSION=$(PYTHON_VERSION) -e MTUNE= $(BUILDER_IMAGE_NAME_ARM) ./build-runtime
+	docker container run --platform=arm64 $(INTERACTIVE) --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work $(VERBOSE) $(CACHE) -e PACKAGE_NAME=$(PACKAGE_NAME_ARM) -e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_ARM) -e PYTHON_VERSION=$(PYTHON_VERSION) -e MTUNE= $(BUILDER_IMAGE_NAME_ARM) ./build-runtime
+$(FULL_PACKAGE_NAME_DEV): $(FULL_PACKAGE_NAME) ;
+$(FULL_PACKAGE_NAME_DEV_ARM): $(FULL_PACKAGE_NAME_ARM) ;
 
 # Test the runtime in a fresh container image
 test: $(FULL_PACKAGE_NAME)
@@ -52,10 +71,19 @@ test: $(FULL_PACKAGE_NAME)
 test-arm: $(FULL_PACKAGE_NAME_ARM)
 	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME_ARM) ./test-runtime
+test-dev: $(FULL_PACKAGE_NAME_DEV)
+	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) ./test-runtime
+test-arm-dev: $(FULL_PACKAGE_NAME_DEV_ARM)
+	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) ./test-runtime
 
 # Get an interactive prompt to a fresh container with the runtime installed
 run: $(FULL_PACKAGE_NAME)
 	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
+run-dev: $(FULL_PACKAGE_NAME_DEV)
+	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
 
 # Clean: remove output files
@@ -122,7 +150,11 @@ help:
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Testing:$(COLOR_RESET)"; \
 	echo -e "  make test                             Install the package in a fresh container and test it"; \
+	echo -e "  make test-dev                         Install the dev package in a fresh container and test it"; \
+	echo -e "  make test-arm                         Install the ARM64 package in a fresh container and test it"; \
+	echo -e "  make test-arm-dev                     Install the ARM64 dev package in a fresh container and test it"; \
 	echo -e "  make run                              Install the package in a fresh container and get an interactive prompt"; \
+	echo -e "  make run-dev                          Install the dev package in a fresh container and get an interactive prompt"; \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Cleanup:$(COLOR_RESET)"; \
 	echo -e "  make clean                            Delete the package and cache files"; \

@@ -4,6 +4,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG PRT_PACKAGE=prt_latest.tgz
 ARG PRT_ROOT=/prt
 
-RUN apt-get update && apt-get install -y openssl jq
+RUN apt-get update && apt-get install -y openssl libsqlite3-0 jq
 COPY test-runtime /test-runtime
 ADD ${PRT_PACKAGE} ${PRT_ROOT}/

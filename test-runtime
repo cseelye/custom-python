@@ -3,6 +3,7 @@ set -euETo pipefail
 shopt -s inherit_errexit
 
 PRT_ROOT=${PRT_ROOT-/prt}
+DEV_INSTALL=${DEV_INSTALL-0}
 
 COLOR_ESC="\e["
 COLOR_OFF="${COLOR_ESC}0m"
@@ -91,3 +92,16 @@ for lib in "${package_list[@]}"; do
     ( set -x; ${PRT_ROOT}/bin/python -c "import ${lib}" )
 done
 echo
+
+if [[ ${DEV_INSTALL} -eq 1 ]]; then
+
+    # Test basic dev tools are present
+    color ${MAGENTA} "===================================================="
+    color ${MAGENTA} "                   Test dev tools"
+    color ${MAGENTA} "===================================================="
+    tool_list=( pytest pylint ruff black tox coverage )
+    for tool in "${tool_list[@]}"; do
+        ( set -x; ${PRT_ROOT}/bin/${tool} --version )
+    done
+
+fi

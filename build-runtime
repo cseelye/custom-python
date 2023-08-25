@@ -6,11 +6,14 @@ SECONDS=0
 
 PYTHON_VERSION=${PYTHON_VERSION-3.11.4}
 PACKAGE_NAME=${PACKAGE_NAME-prt.tgz}
+PACKAGE_NAME_DEV=${PACKAGE_NAME_DEV-prt-dev.tgz}
 PRT_ROOT=${PRT_ROOT-/prt}
 OUTPUT_DIR=${OUTPUT_DIR-/output}
 RUNTIME_VER=${RUNTIME_VER-v0}
 CACHE_URL=http://localhost:9000/prt/cache
 MTUNE=${MTUNE-icelake-server}
+
+USE_CACHE=${USE_CACHE-1}
 
 COLOR_ESC="\e["
 COLOR_OFF="${COLOR_ESC}0m"
@@ -49,7 +52,8 @@ delay_shutdown() {
     echo
     date -ud "@$SECONDS" "+Total runtime: %Hh%Mm%Ss"
     # This is a hack to allow a little time for the log function to finish and flush stdout
-    #    before the script exits and container shuts down
+    #   before the script exits and container shuts down, otherwise the gitlab runner tends to
+    #   kill the script and lose the last bit of output
     sleep 0.5
 }
 trap 'set +x; delay_shutdown' EXIT ERR
@@ -71,7 +75,7 @@ color ${MAGENTA} "* * * Building base python runtime version ${PYTHON_VERSION}"
 mkdir -p "${PRT_ROOT}"
 # Try to download a cached build of python
 CACHE_FILE="cache_prt_python_${PYTHON_VERSION}_$(uname -m).tgz"
-if curl -fsSL --head ${CACHE_URL}/${CACHE_FILE} &>/dev/null; then
+if [[ ${USE_CACHE} -eq 1 ]] && curl -fsSL --head ${CACHE_URL}/${CACHE_FILE} &>/dev/null; then
     echo "Downloading cached build for python ${PYTHON_VERSION}"
     curl -fsSL ${CACHE_URL}/${CACHE_FILE} -o /tmp/python.tgz
     tar -xzf /tmp/python.tgz -C "${PRT_ROOT}"
@@ -84,10 +88,16 @@ else
     export PROFILE_TASK='-m test.regrtest --pgo -j0'
     VERBOSE=""
     if [[ -n ${CI-} || -n ${V-} ]]; then
-        VERBOSE="-v"
+        VERBOSE="--verbose"
     fi
-    python-build ${VERBOSE} ${PYTHON_VERSION} "${PRT_ROOT}"
-    echo "Updating python cache object"
+
+    if [[ -n "$(find pre-patch -name  "*.patch" 2>/dev/null || true)" ]]; then
+        cat  pre-patch/*.patch | python-build -p ${VERBOSE} ${PYTHON_VERSION} "${PRT_ROOT}"
+    else
+        python-build ${VERBOSE} ${PYTHON_VERSION} "${PRT_ROOT}"
+    fi
+    echo
+    echo ">>> Updating python cache object"
     tar -czf /tmp/${CACHE_FILE} -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
     mv /tmp/${CACHE_FILE} "${OUTPUT_DIR}/"
     ls -lh  "${OUTPUT_DIR}/${CACHE_FILE}"
@@ -105,10 +115,12 @@ done
 # Download the pip cache to preload it
 PIP_CACHE_FILE="cache_prt_pip_$(uname -m).tgz"
 mkdir -p /root/.cache
-if curl -fsSL --head ${CACHE_URL}/${PIP_CACHE_FILE} &>/dev/null; then
-    echo ">>> Preloading pip cache"
-    curl -fsSL ${CACHE_URL}/${PIP_CACHE_FILE} | tar -xz -C /root/.cache || true
-    echo
+if [[ ${USE_CACHE} -eq 1 ]]; then
+    if curl -fsSL --head ${CACHE_URL}/${PIP_CACHE_FILE} &>/dev/null; then
+        echo ">>> Preloading pip cache"
+        curl -fsSL ${CACHE_URL}/${PIP_CACHE_FILE} | tar -xz -C /root/.cache || true
+        echo
+    fi
 fi
 
 # Configure pip and install python packages
@@ -119,9 +131,9 @@ for req_file in $(find ./python-requirements -type f -name "*.txt" -exec readlin
     echo
 done
 
+echo ">>> Updating pip cache object"
 (
 echo
-echo ">>> Updating pip cache object"
 tar -czf /tmp/${PIP_CACHE_FILE} -C /root/.cache pip
 mv /tmp/${PIP_CACHE_FILE} ${OUTPUT_DIR}/
 echo
@@ -143,6 +155,68 @@ cp "${PRT_ROOT}/manifest.json" "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}.manifest.json"
 ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}"*
 ) ) 2>&1 | indent
 
-popd &>/dev/null
 
+
+color ${CYAN} "===================================================="
+color ${CYAN} "     Building Python Runtime (DEV) $(uname -m)"
+color ${CYAN} "===================================================="
+echo
+
+# Apply any patches
+for patch_file in $(find ./dev/patch -type f -name "*.patch" -exec readlink -f {} \; | sort -V); do
+    color ${MAGENTA} "* * * Applying patch $(basename ${patch_file})"
+    ( time patch -d "${PRT_ROOT}" -p2 <  "${patch_file}" ) 2>&1 | indent
+    echo
+done
+
+# Download the pip cache to preload it
+PIP_DEV_CACHE_FILE="cache_prt_dev_pip_$(uname -m).tgz"
+mkdir -p /root/.cache
+if curl -fsSL --head ${CACHE_URL}/${PIP_DEV_CACHE_FILE} &>/dev/null; then
+    echo ">>> Preloading dev pip cache"
+    curl -fsSL ${CACHE_URL}/${PIP_DEV_CACHE_FILE} | tar -xz -C /root/.cache || true
+    echo
+fi
+
+# Install python packages
+for req_file in $(find ./dev/requirements -type f -name "*.txt" -exec readlink -f {} \; | sort -V); do
+    color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
+    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --requirement "${req_file}" ) 2>&1 | indent
+    echo
+done
+
+# Run customization scripts
+for script in $(find ./dev/scripts -type f -name "*.txt" -exec readlink -f {} \; | sort -V); do
+    color ${MAGENTA} "* * * Running customization script $(basename ${script})"
+    ( time "${script}" ) 2>&1 | indent
+    echo
+done
+
+echo ">>> Updating dev pip cache object"
+(
+echo
+tar -czf /tmp/${PIP_DEV_CACHE_FILE} -C /root/.cache pip
+mv /tmp/${PIP_DEV_CACHE_FILE} ${OUTPUT_DIR}/
+echo
+) 2>&1 | indent
+
+# Create manifest
+"${PRT_ROOT}"/bin/pip list --format=json | jq '{"python_packages": .}' \
+    | jq '. += {"python_version": "'${PYTHON_VERSION}'", "runtime_version": "'${RUNTIME_VER}'"}' \
+    > "${PRT_ROOT}"/manifest.json
+
+# Create the package archive
+color ${MAGENTA} "* * * Creating dev package"
+tmpfile="$(mktemp)"
+( time (
+tar -czf "${tmpfile}" -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
+chmod +r "${tmpfile}"
+mv "${tmpfile}" "${OUTPUT_DIR}/${PACKAGE_NAME_DEV}"
+cp "${PRT_ROOT}/manifest.json" "${OUTPUT_DIR}/${PACKAGE_NAME_DEV%%.*}.manifest.json"
+ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME_DEV%%.*}"*
+) ) 2>&1 | indent
+
+
+
+popd &>/dev/null
 exit 0
