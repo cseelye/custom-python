@@ -4,6 +4,8 @@ Custom Python Runtime
 All notable changes to the runtime will be documented in this file. Versioning follows the format vX, where X is the version number.
 
 ## [Unreleased]
+### Changed
+* Update default to python 3.11.5
 ### Added
 * Dev build with development tools and utils, for devcontainer use
 

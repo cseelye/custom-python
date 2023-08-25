@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash -o pipefail
 PACKAGE_PREFIX ?= prt
 PACKAGE_VERSION ?= $(shell git tag --list 'v*' | sort -V | tail -n1 || echo v0)
-PYTHON_VERSION ?= 3.11.4
+PYTHON_VERSION ?= 3.11.5
 PRT_ROOT ?= /prt
 BUILDER_IMAGE_NAME ?= prt-builder
 TEST_IMAGE_NAME ?= prt-tester
@@ -43,12 +43,12 @@ BUILDER_DEPS = Dockerfile build-runtime pip.conf $(wildcard post-patch/*.patch) 
 # Build the builder container image
 builder-image: .builder-image
 .builder-image: $(BUILDER_DEPS)
-	docker image build -t $(BUILDER_IMAGE_NAME) . && \
+	docker image build --no-cache -t $(BUILDER_IMAGE_NAME) . && \
 	id=$$(docker image inspect -f '{{.Id}}' $(BUILDER_IMAGE_NAME)) && echo "$${id}" > .builder-image
 
 builder-image-arm: .builder-image-arm
 .builder-image-arm: $(BUILDER_DEPS)
-	docker image build --platform=arm64 -t $(BUILDER_IMAGE_NAME_ARM) . && \
+	docker image build --platform=arm64 --no-cache -t $(BUILDER_IMAGE_NAME_ARM) . && \
 	id=$$(docker image inspect -f '{{.Id}}' $(BUILDER_IMAGE_NAME_ARM)) && echo "$${id}" > .builder-image-arm
 
 $(OUTPUT_DIR):
