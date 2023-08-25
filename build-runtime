@@ -156,14 +156,18 @@ ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}"*
 ) ) 2>&1 | indent
 
 
-
+echo
+echo
 color ${CYAN} "===================================================="
 color ${CYAN} "     Building Python Runtime (DEV) $(uname -m)"
 color ${CYAN} "===================================================="
 echo
 
+pwd
+ls -lh
+
 # Apply any patches
-for patch_file in $(find ./dev/patch -type f -name "*.patch" -exec readlink -f {} \; | sort -V); do
+for patch_file in $(find ./dev/patch -type f -name "*.patch" -exec readlink -f {} \; | sort -V || true 2>/dev/null); do
     color ${MAGENTA} "* * * Applying patch $(basename ${patch_file})"
     ( time patch -d "${PRT_ROOT}" -p2 <  "${patch_file}" ) 2>&1 | indent
     echo

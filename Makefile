@@ -38,7 +38,7 @@ FULL_PACKAGE_NAME_DEV_ARM := $(OUTPUT_DIR)/$(PACKAGE_NAME_DEV_ARM)
 INTERACTIVE := $(shell if tty -s; then echo "-it"; else echo ""; fi)
 
 # Dependecies that should cause rebuild of the builder container image
-BUILDER_DEPS = Dockerfile build-runtime pip.conf $(wildcard post-patch/*.patch) $(wildcard python-requirements/*.txt)
+BUILDER_DEPS = Dockerfile
 
 # Build the builder container image
 builder-image: .builder-image
@@ -77,6 +77,7 @@ test-dev: $(FULL_PACKAGE_NAME_DEV)
 test-arm-dev: $(FULL_PACKAGE_NAME_DEV_ARM)
 	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
+test-all: test test-dev test-arm test-arm-dev ;
 
 # Get an interactive prompt to a fresh container with the runtime installed
 run: $(FULL_PACKAGE_NAME)
@@ -153,6 +154,7 @@ help:
 	echo -e "  make test-dev                         Install the dev package in a fresh container and test it"; \
 	echo -e "  make test-arm                         Install the ARM64 package in a fresh container and test it"; \
 	echo -e "  make test-arm-dev                     Install the ARM64 dev package in a fresh container and test it"; \
+	echo -e "  make test-all                     	 Run the tests for all the variations"; \
 	echo -e "  make run                              Install the package in a fresh container and get an interactive prompt"; \
 	echo -e "  make run-dev                          Install the dev package in a fresh container and get an interactive prompt"; \
 	echo ""; \
