@@ -4,7 +4,7 @@ shopt -s inherit_errexit
 
 SECONDS=0
 
-PYTHON_VERSION=${PYTHON_VERSION-3.11.4}
+PYTHON_VERSION=${PYTHON_VERSION-3.11.5}
 PACKAGE_NAME=${PACKAGE_NAME-prt.tgz}
 PACKAGE_NAME_DEV=${PACKAGE_NAME_DEV-prt-dev.tgz}
 PRT_ROOT=${PRT_ROOT-/prt}
@@ -106,7 +106,7 @@ fi
 echo
 
 # Apply any post-patches
-for patch_file in $(find ./post-patch -type f -name "*.patch" -exec readlink -f {} \; | sort -V); do
+for patch_file in $(find ./post-patch -type f -name "*.patch" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Applying patch $(basename ${patch_file})"
     ( time patch -d "${PRT_ROOT}" -p2 < "${patch_file}" ) 2>&1 | indent
     echo
@@ -125,7 +125,7 @@ fi
 
 # Configure pip and install python packages
 cp ./pip.conf "${PRT_ROOT}"
-for req_file in $(find ./python-requirements -type f -name "*.txt" -exec readlink -f {} \; | sort -V); do
+for req_file in $(find ./python-requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
     ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --requirement "${req_file}" ) 2>&1 | indent
     echo
@@ -164,7 +164,7 @@ color ${CYAN} "===================================================="
 echo
 
 # Apply any patches
-for patch_file in $(find ./dev/patch -type f -name "*.patch" -exec readlink -f {} \; | sort -V || true 2>/dev/null); do
+for patch_file in $(find ./dev/patch -type f -name "*.patch" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Applying patch $(basename ${patch_file})"
     ( time patch -d "${PRT_ROOT}" -p2 <  "${patch_file}" ) 2>&1 | indent
     echo
@@ -180,14 +180,14 @@ if curl -fsSL --head ${CACHE_URL}/${PIP_DEV_CACHE_FILE} &>/dev/null; then
 fi
 
 # Install python packages
-for req_file in $(find ./dev/requirements -type f -name "*.txt" -exec readlink -f {} \; | sort -V); do
+for req_file in $(find ./dev/requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
     ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --requirement "${req_file}" ) 2>&1 | indent
     echo
 done
 
 # Run customization scripts
-for script in $(find ./dev/scripts -type f -name "*.txt" -exec readlink -f {} \; | sort -V); do
+for script in $(find ./dev/scripts -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Running customization script $(basename ${script})"
     ( time "${script}" ) 2>&1 | indent
     echo

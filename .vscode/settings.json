@@ -7,7 +7,8 @@
     "files.trimTrailingWhitespace": true,
     "files.trimFinalNewlines": true,
     "[yaml]": {
-        "editor.tabSize": 2
+        "editor.tabSize": 2,
+        "editor.formatOnSave": false
     },
     "terminal.integrated.scrollback": 10000,
     "editor.formatOnSave": true,

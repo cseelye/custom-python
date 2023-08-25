@@ -14,6 +14,37 @@ PACKAGE_NAME_ARM ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION)_aarch64.tgz
 PACKAGE_NAME_DEV_ARM ?= $(PACKAGE_PREFIX)-dev_$(PACKAGE_VERSION)_aarch64.tgz
 TEST_IMAGE_NAME_ARM ?= prt-tester-arm
 
+PACKAGE_NAME_TEMPLATE ?= '$${PACKAGE_PREFIX}$${DEV_BUILD}_$${PACKAGE_VERSION}$${ARCH}'
+PACKAGE_EXT ?= .tgz
+MANIFEST_EXT ?= .manifest.json
+
+PACKAGE_NAME := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
+PACKAGE_NAME_DEV := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=-dev; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
+PACKAGE_NAME_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export ARCH="_aarch64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
+PACKAGE_NAME_DEV_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export ARCH="_aarch64"; export DEV_BUILD=-dev; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
+
+print-%  : ; @echo $*=$($*)
+
+# Print the values of the variables in a format that can be written to an env file - make env-file > .env
+env-file:
+	@echo "PACKAGE_NAME=$(PACKAGE_NAME)"
+	@echo "PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV)"
+	@echo "PACKAGE_NAME_ARM=$(PACKAGE_NAME_ARM)"
+	@echo "PACKAGE_NAME_DEV_ARM=$(PACKAGE_NAME_DEV_ARM)"
+	@echo "PYTHON_VERSION=$(PYTHON_VERSION)"
+	@echo "PACKAGE_PREFIX=$(PACKAGE_PREFIX)"
+	@echo "PACKAGE_EXT=$(PACKAGE_EXT)"
+	@echo "MANIFEST_EXT=$(MANIFEST_EXT)"
+	@echo "FILESERVER=$(FILESERVER)"
+	@echo "BUILDER_IMAGE_NAME=$(BUILDER_IMAGE_NAME)"
+	@echo "TEST_IMAGE_NAME=$(TEST_IMAGE_NAME)"
+	@echo "BUILDER_IMAGE_NAME_ARM=$(BUILDER_IMAGE_NAME_ARM)"
+	@echo "TEST_IMAGE_NAME_ARM=$(TEST_IMAGE_NAME_ARM)"
+
+# Print the values of the variables in a format that can be eval to use them - eval $(make env)
+env:
+	@$(MAKE) -s env-file | sed -u "s/^/export /"
+
 # Set verbose flag
 V ?= 0
 VERBOSE=
@@ -57,10 +88,27 @@ $(OUTPUT_DIR):
 # Build the runtime package
 package: $(FULL_PACKAGE_NAME)
 $(FULL_PACKAGE_NAME): .builder-image build-runtime | $(OUTPUT_DIR)
-	docker container run $(INTERACTIVE) --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work $(VERBOSE) $(CACHE) -e RUNTIME_VER=$(PACKAGE_VERSION) -e PACKAGE_NAME=$(PACKAGE_NAME) -e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV) -e PYTHON_VERSION=$(PYTHON_VERSION) $(BUILDER_IMAGE_NAME) ./build-runtime
+	docker container run $(INTERACTIVE) --rm $(VERBOSE) $(CACHE) \
+		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
+		-v $(shell pwd):/work -w /work \
+		-e RUNTIME_VER=$(PACKAGE_VERSION) \
+		-e PACKAGE_NAME=$(PACKAGE_NAME) \
+		-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV) \
+		-e PYTHON_VERSION=$(PYTHON_VERSION) \
+		$(BUILDER_IMAGE_NAME) \
+		./build-runtime
 package-arm: $(FULL_PACKAGE_NAME_ARM)
 $(FULL_PACKAGE_NAME_ARM): .builder-image-arm build-runtime | $(OUTPUT_DIR)
-	docker container run --platform=arm64 $(INTERACTIVE) --rm -v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output -v $(shell pwd):/work -w /work $(VERBOSE) $(CACHE) -e RUNTIME_VER=$(PACKAGE_VERSION) -e PACKAGE_NAME=$(PACKAGE_NAME_ARM) -e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_ARM) -e PYTHON_VERSION=$(PYTHON_VERSION) -e MTUNE= $(BUILDER_IMAGE_NAME_ARM) ./build-runtime
+	docker container run --platform=arm64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE) \
+	-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
+	-v $(shell pwd):/work -w /work \
+	-e RUNTIME_VER=$(PACKAGE_VERSION) \
+	-e PACKAGE_NAME=$(PACKAGE_NAME_ARM) \
+	-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_ARM) \
+	-e PYTHON_VERSION=$(PYTHON_VERSION) \
+	-e MTUNE= \
+	$(BUILDER_IMAGE_NAME_ARM) \
+	./build-runtime
 $(FULL_PACKAGE_NAME_DEV): $(FULL_PACKAGE_NAME) ;
 $(FULL_PACKAGE_NAME_DEV_ARM): $(FULL_PACKAGE_NAME_ARM) ;
 
