@@ -143,7 +143,7 @@ clean:
 # Clobber: clean output files and delete build containers
 clobber: clean
 	$(RM) .builder-image*
-	docker image rm $(BUILDER_IMAGE_NAME) $(BUILDER_IMAGE_NAME_ARM) $(TEST_IMAGE_NAME) || true
+	docker image rm $(BUILDER_IMAGE_NAME) $(BUILDER_IMAGE_NAME_ARM) $(TEST_IMAGE_NAME) $(TEST_IMAGE_NAME_ARM) || true
 
 # Upload the cache files
 upload-cache:
