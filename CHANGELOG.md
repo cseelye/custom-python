@@ -5,6 +5,10 @@ All notable changes to the runtime will be documented in this file. Versioning f
 
 ## [Unreleased]
 
+## [v8] - 2023-08-28
+### Fixed
+* pydantic source install in devcontainer
+
 ## [v7] - 2023-08-26
 ### Changed
 * Update default to python 3.11.5

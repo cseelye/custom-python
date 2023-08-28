@@ -3,4 +3,4 @@ set -euETo pipefail
 shopt -s inherit_errexit
 
 # Install source version of pydantic for better debugging
-${PRT}/bin/pip install --force-reinstall --no-binary pydantic==1.9.0
+${PRT}/bin/pip install --force-reinstall --no-deps --no-binary pydantic==1.10.12
