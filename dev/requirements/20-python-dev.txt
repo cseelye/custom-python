@@ -1,10 +1,10 @@
+# General python dev tools
 black
 coverage
 debugpy
 graphviz
 httpx
 pylint
-pylint-pydantic
 pytest
 pytest-timeout
 ruff

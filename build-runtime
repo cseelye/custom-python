@@ -12,8 +12,8 @@ OUTPUT_DIR=${OUTPUT_DIR-/output}
 RUNTIME_VER=${RUNTIME_VER-v0}
 CACHE_URL=http://localhost:9000/prt/cache
 MTUNE=${MTUNE-icelake-server}
-
 USE_CACHE=${USE_CACHE-1}
+PRT_VENV_ROOT=${PRT_VENV_ROOT-${PRT_ROOT}/venv}
 
 COLOR_ESC="\e["
 COLOR_OFF="${COLOR_ESC}0m"
@@ -187,9 +187,9 @@ for req_file in $(find ./dev/requirements -type f -name "*.txt" -exec readlink -
 done
 
 # Run customization scripts
-for script in $(find ./dev/scripts -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+for script in $(find ./dev/scripts -type f -executable -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Running customization script $(basename ${script})"
-    ( time "${script}" ) 2>&1 | indent
+    ( export PRT_ROOT; export PRT_VENV_ROOT; time "${script}" ) 2>&1 | indent
     echo
 done
 

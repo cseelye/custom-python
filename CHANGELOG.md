@@ -5,6 +5,12 @@ All notable changes to the runtime will be documented in this file. Versioning f
 
 ## [Unreleased]
 
+## [v9] - 2023-08-31
+### Fixed
+* Fix dev customization scripts not being run
+* Fix package names in makefile
+* Fix pylint-pydantic upgrading pydantic to unsupported version
+
 ## [v8] - 2023-08-28
 ### Fixed
 * pydantic source install in devcontainer

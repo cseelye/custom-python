@@ -3,8 +3,8 @@ set -euETo pipefail
 shopt -s inherit_errexit
 
 # Install ansible and development tools in a virtual env
-${PRT}/bin/python -m venv /ansible
-source /ansible/bin/activate
+${PRT_ROOT}/bin/python -m venv ${PRT_VENV_ROOT}/ansible
+source ${PRT_VENV_ROOT}/ansible/bin/activate
 
 pip install --no-user wheel
 pip install --no-user \
@@ -13,3 +13,18 @@ pip install --no-user \
         ansible-lint \
         docker \
         jmespath
+# Create a script to run ansible from the venv
+cat << EOF | tee ${PRT_ROOT}/bin/ansible
+#!/usr/bin/env bash
+set -euETo pipefail
+shopt -s inherit_errexit
+source ${PRT_VENV_ROOT}/ansible/bin/activate
+trap "deactivate" EXIT
+script=\$(basename "\$0")
+exec \${script} "\$@"
+EOF
+chmod +x ${PRT_ROOT}/bin/ansible
+# Create links for each tool
+for tool in $(find /prt/venv/ansible/bin/ -name "ansible-*" -executable -exec basename {} \;); do
+    ( cd ${PRT_ROOT}/bin; ln -s ansible ${tool} )
+done

@@ -112,7 +112,7 @@ if [[ ${DEV_INSTALL} -eq 1 ]]; then
     color ${MAGENTA} "===================================================="
     color ${MAGENTA} "                   Test dev tools"
     color ${MAGENTA} "===================================================="
-    tool_list=( pytest pylint ruff black tox coverage )
+    tool_list=( pytest pylint ruff black tox coverage ansible )
     for tool in "${tool_list[@]}"; do
         ( set -x; ${PRT_ROOT}/bin/${tool} --version )
     done

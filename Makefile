@@ -18,14 +18,13 @@ PACKAGE_NAME_TEMPLATE ?= '$${PACKAGE_PREFIX}$${DEV_BUILD}_$${PACKAGE_VERSION}$${
 PACKAGE_EXT ?= .tgz
 MANIFEST_EXT ?= .manifest.json
 
-PACKAGE_NAME := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
+PACKAGE_NAME := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
 PACKAGE_NAME_DEV := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=-dev; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
-PACKAGE_NAME_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export ARCH="_aarch64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
+PACKAGE_NAME_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=; export ARCH="_aarch64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
 PACKAGE_NAME_DEV_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export ARCH="_aarch64"; export DEV_BUILD=-dev; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
 
-print-%  : ; @echo $*=$($*)
-
 # Print the values of the variables in a format that can be written to an env file - make env-file > .env
+.PHONY: env-file
 env-file:
 	@echo "PACKAGE_NAME=$(PACKAGE_NAME)"
 	@echo "PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV)"
@@ -42,6 +41,7 @@ env-file:
 	@echo "TEST_IMAGE_NAME_ARM=$(TEST_IMAGE_NAME_ARM)"
 
 # Print the values of the variables in a format that can be eval to use them - eval $(make env)
+.PHONY: env
 env:
 	@$(MAKE) -s env-file | sed -u "s/^/export /"
 
@@ -148,6 +148,9 @@ clobber: clean
 # Upload the cache files
 upload-cache:
 	scp $(OUTPUT_DIR)/cache_* ${FILESERVER}
+
+# Print the value of a variable
+print-%  : ; @echo $*=$($*)
 
 # Color variables
 STYLE_REG=0

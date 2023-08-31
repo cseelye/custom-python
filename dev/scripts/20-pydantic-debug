@@ -2,5 +2,9 @@
 set -euETo pipefail
 shopt -s inherit_errexit
 
+# Install pylint plugin without deps so that it does not upgrade pydantic package
+${PRT_ROOT}/bin/pip install --no-deps pylint-pydantic
+
 # Install source version of pydantic for better debugging
-${PRT}/bin/pip install --force-reinstall --no-deps --no-binary pydantic==1.10.12
+${PRT_ROOT}/bin/pip uninstall --yes pydantic
+${PRT_ROOT}/bin/pip install --no-deps --no-binary=pydantic pydantic==1.10.12
