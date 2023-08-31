@@ -16,6 +16,8 @@ pip install --no-user \
         docker \
         jmespath
 # Create a script to run ansible from the venv
+echo "Creating helper script"
+echo
 script_path="${PRT_ROOT}/bin/ansible"
 cat << EOF | tee "${script_path}"
 #!/usr/bin/env bash

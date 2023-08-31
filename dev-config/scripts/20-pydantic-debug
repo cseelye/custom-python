@@ -2,6 +2,8 @@
 set -euETo pipefail
 shopt -s inherit_errexit
 
+${PRT_ROOT}/bin/pip install pylint-plugin-utils
+
 # Install pylint plugin without deps so that it does not upgrade pydantic package
 ${PRT_ROOT}/bin/pip install --no-deps pylint-pydantic
 

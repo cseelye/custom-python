@@ -4,6 +4,15 @@ Custom Python Runtime
 All notable changes to the runtime will be documented in this file. Versioning follows the format vX, where X is the version number.
 
 ## [Unreleased]
+
+## [v10] - 2023-09-21
+### Added
+* Add wheel package to devcontainer
+* Add constraints file to make package version management easier
+* Automatically run pip check to catch any mismatched requirements
+### Changed
+* Use explicit 'platform' argument to docker for building/running all images
+* Reorganize build files
 ### Fixed
 * Fix makefile dependencies
 

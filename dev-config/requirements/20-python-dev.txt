@@ -9,15 +9,9 @@ pytest
 pytest-timeout
 ruff
 tox
+wheel
 
 # For CI/builds
 bump2version
 parse-changelog
 twine
-
-# For building docs in lifecycle_sdk
-sphinx_rtd_theme
-recommonmark
-sphinx-autoapi
-docutils==0.18.1
-m2r2==0.3.2

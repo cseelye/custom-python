@@ -91,7 +91,7 @@ else
         VERBOSE="--verbose"
     fi
 
-    if [[ -n "$(find pre-patch -name  "*.patch" 2>/dev/null || true)" ]]; then
+    if [[ -n "$(find ./config/pre-patch -name  "*.patch" 2>/dev/null || true)" ]]; then
         cat  pre-patch/*.patch | python-build -p ${VERBOSE} ${PYTHON_VERSION} "${PRT_ROOT}"
     else
         python-build ${VERBOSE} ${PYTHON_VERSION} "${PRT_ROOT}"
@@ -106,7 +106,7 @@ fi
 echo
 
 # Apply any post-patches
-for patch_file in $(find ./post-patch -type f -name "*.patch" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+for patch_file in $(find ./config/post-patch -type f -name "*.patch" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Applying patch $(basename ${patch_file})"
     ( time patch -d "${PRT_ROOT}" -p2 < "${patch_file}" ) 2>&1 | indent
     echo
@@ -124,10 +124,23 @@ if [[ ${USE_CACHE} -eq 1 ]]; then
 fi
 
 # Configure pip and install python packages
+CONSTRAINT_FILE="config/constraints.txt"
 cp ./pip.conf "${PRT_ROOT}"
-for req_file in $(find ./python-requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+for req_file in $(find ./config/requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
-    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --requirement "${req_file}" ) 2>&1 | indent
+    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --constraint ${CONSTRAINT_FILE} --requirement "${req_file}"
+      "${PRT_ROOT}"/bin/pip check || true ) 2>&1 | indent
+    echo
+done
+
+# Run customization scripts
+for script in $(find ./config/scripts -type f -executable -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+    color ${MAGENTA} "* * * Running customization script $(basename ${script})"
+    ( export PRT_ROOT
+      export PRT_VENV_ROOT
+      export CONSTRAINT_FILE
+      time "${script}"
+      "${PRT_ROOT}"/bin/pip check || true ) 2>&1 | indent
     echo
 done
 
@@ -164,7 +177,7 @@ color ${CYAN} "===================================================="
 echo
 
 # Apply any patches
-for patch_file in $(find ./dev/patch -type f -name "*.patch" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+for patch_file in $(find ./dev-config/patch -type f -name "*.patch" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Applying patch $(basename ${patch_file})"
     ( time patch -d "${PRT_ROOT}" -p2 <  "${patch_file}" ) 2>&1 | indent
     echo
@@ -180,16 +193,21 @@ if curl -fsSL --head ${CACHE_URL}/${PIP_DEV_CACHE_FILE} &>/dev/null; then
 fi
 
 # Install python packages
-for req_file in $(find ./dev/requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+for req_file in $(find ./dev-config/requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
-    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --requirement "${req_file}" ) 2>&1 | indent
+    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --constraint ${CONSTRAINT_FILE} --requirement "${req_file}"
+      "${PRT_ROOT}"/bin/pip check || true ) 2>&1 | indent
     echo
 done
 
 # Run customization scripts
-for script in $(find ./dev/scripts -type f -executable -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+for script in $(find ./dev-config/scripts -type f -executable -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Running customization script $(basename ${script})"
-    ( export PRT_ROOT; export PRT_VENV_ROOT; time "${script}" ) 2>&1 | indent
+    ( export PRT_ROOT
+      export PRT_VENV_ROOT
+      export CONSTRAINT_FILE
+      time "${script}"
+      "${PRT_ROOT}"/bin/pip check || true ) 2>&1 | indent
     echo
 done
 

@@ -52,6 +52,13 @@ exec &> >(log)
 
 
 
+# Test the manifest is present and parsable
+color ${MAGENTA} "===================================================="
+color ${MAGENTA} "       Test manifest is present and readable"
+color ${MAGENTA} "===================================================="
+cat "${PRT_ROOT}"/manifest.json | jq . > /dev/null
+echo
+
 # Test that python runs and reports the correct version
 color ${MAGENTA} "===================================================="
 color ${MAGENTA} "               Test python version"
@@ -78,20 +85,13 @@ if [[ "${actual_ver}" != "${expected_ver}" ]]; then
 fi
 echo
 
-# Test the manifest is present and parsable
-color ${MAGENTA} "===================================================="
-color ${MAGENTA} "       Test manifest is present and readable"
-color ${MAGENTA} "===================================================="
-cat "${PRT_ROOT}"/manifest.json | jq .
-echo
-
 # Test using pip
 color ${MAGENTA} "===================================================="
 color ${MAGENTA} "                    Test pip"
 color ${MAGENTA} "===================================================="
 "${PRT_ROOT}"/bin/pip --version
 "${PRT_ROOT}"/bin/pip install pip-install-test
-${PRT_ROOT}/bin/python -c "import pip_install_test"
+( set -x; ${PRT_ROOT}/bin/python -c "import pip_install_test" )
 "${PRT_ROOT}"/bin/pip uninstall --root-user-action=ignore --yes pip-install-test
 echo
 
@@ -108,7 +108,7 @@ echo
 
 if [[ ${DEV_INSTALL} -eq 1 ]]; then
 
-    # Test basic dev tools are present
+    # Test tools are present
     color ${MAGENTA} "===================================================="
     color ${MAGENTA} "                   Test dev tools"
     color ${MAGENTA} "===================================================="
@@ -116,5 +116,16 @@ if [[ ${DEV_INSTALL} -eq 1 ]]; then
     for tool in "${tool_list[@]}"; do
         ( set -x; ${PRT_ROOT}/bin/${tool} --version )
     done
+
+    # Test importing a few packages
+    color ${MAGENTA} "===================================================="
+    color ${MAGENTA} "              Test importing dev packages"
+    color ${MAGENTA} "===================================================="
+    package_list=( wheel )
+    # Test that we can import each package
+    for lib in "${package_list[@]}"; do
+        ( set -x; ${PRT_ROOT}/bin/python -c "import ${lib}" )
+    done
+    echo
 
 fi

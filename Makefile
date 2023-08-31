@@ -68,24 +68,31 @@ FULL_PACKAGE_NAME_DEV_ARM := $(OUTPUT_DIR)/$(PACKAGE_NAME_DEV_ARM)
 # Determine if make is runing interactively or in a script
 INTERACTIVE := $(shell if tty -s; then echo "-it"; else echo ""; fi)
 
+# Determine the local CPU architecture
+ifeq ($(shell uname -m),x86_64)
+  LOCAL_PLATFORM=--platform=amd64
+else ifeq ($(shell uname -m),aarch64)
+  LOCAL_PLATFORM=--platform=arm64
+endif
+
 # Dependecies that should cause rebuild of the builder container image
 BUILDER_DEPS = Dockerfile
 
 # Dependecies that should cause rebuild of the package
-PACKAGE_DEPS = build-runtime $(wildcard post-patch/*.patch) $(wildcard python-requirements/*.txt)
+PACKAGE_DEPS = build-runtime $(shell find ./config -type f -print 2>/dev/null || true)
 
 # Dependecies that should cause rebuild of the dev package
-PACKAGE_DEPS_DEV = build-runtime $(shell find ./dev -type f -print 2>/dev/null || true)
+PACKAGE_DEPS_DEV = build-runtime $(shell find ./dev-config -type f -print 2>/dev/null || true)
 
 # Build the builder container image
 builder-image: .builder-image
 .builder-image: $(BUILDER_DEPS)
-	docker image build --no-cache -t $(BUILDER_IMAGE_NAME) . && \
+	docker image build --platform=amd64 --no-cache --progress=plain -t $(BUILDER_IMAGE_NAME) . && \
 	id=$$(docker image inspect -f '{{.Id}}' $(BUILDER_IMAGE_NAME)) && echo "$${id}" > .builder-image
 
 builder-image-arm: .builder-image-arm
 .builder-image-arm: $(BUILDER_DEPS)
-	docker image build --platform=arm64 --no-cache -t $(BUILDER_IMAGE_NAME_ARM) . && \
+	docker image build --platform=arm64 --progress=plain -t $(BUILDER_IMAGE_NAME_ARM) . && \
 	id=$$(docker image inspect -f '{{.Id}}' $(BUILDER_IMAGE_NAME_ARM)) && echo "$${id}" > .builder-image-arm
 
 $(OUTPUT_DIR):
@@ -95,7 +102,7 @@ $(OUTPUT_DIR):
 package: $(FULL_PACKAGE_NAME)
 package-dev: $(FULL_PACKAGE_NAME_DEV)
 $(FULL_PACKAGE_NAME) $(FULL_PACKAGE_NAME_DEV): .builder-image $(PACKAGE_DEPS) $(PACKAGE_DEPS_DEV) | $(OUTPUT_DIR)
-	docker container run $(INTERACTIVE) --rm $(VERBOSE) $(CACHE) \
+	docker container run --platform=amd64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE) \
 		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 		-v $(shell pwd):/work -w /work \
 		-e RUNTIME_VER=$(PACKAGE_VERSION) \
@@ -120,14 +127,14 @@ $(FULL_PACKAGE_NAME_ARM) $(FULL_PACKAGE_NAME_DEV_ARM): .builder-image-arm $(PACK
 
 # Test the runtime in a fresh container image
 test: $(FULL_PACKAGE_NAME)
-	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
+	docker image build --platform=amd64 -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
 test-arm: $(FULL_PACKAGE_NAME_ARM)
 	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME_ARM) ./test-runtime
 test-dev: $(FULL_PACKAGE_NAME_DEV)
-	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
+	docker image build --platform=amd64 -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
 test-arm-dev: $(FULL_PACKAGE_NAME_DEV_ARM)
 	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
@@ -135,11 +142,11 @@ test-all: test test-dev test-arm test-arm-dev ;
 
 # Get an interactive prompt to a fresh container with the runtime installed
 run: $(FULL_PACKAGE_NAME)
-	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
+	docker image build $(LOCAL_PLATFORM) -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run $(LOCAL_PLATFORM) --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
 run-dev: $(FULL_PACKAGE_NAME_DEV)
-	docker image build -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
+	docker image build $(LOCAL_PLATFORM) -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run $(LOCAL_PLATFORM) --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
 
 # Clean: remove output files
 clean:
