@@ -3,8 +3,10 @@ set -euETo pipefail
 shopt -s inherit_errexit
 
 # Install ansible and development tools in a virtual env
-${PRT_ROOT}/bin/python -m venv ${PRT_VENV_ROOT}/ansible
-source ${PRT_VENV_ROOT}/ansible/bin/activate
+venv_path="${PRT_VENV_ROOT}/ansible"
+${PRT_ROOT}/bin/python -m venv "${venv_path}"
+
+source "${venv_path}"/bin/activate
 
 pip install --no-user wheel
 pip install --no-user \
@@ -14,17 +16,18 @@ pip install --no-user \
         docker \
         jmespath
 # Create a script to run ansible from the venv
-cat << EOF | tee ${PRT_ROOT}/bin/ansible
+script_path="${PRT_ROOT}/bin/ansible"
+cat << EOF | tee "${script_path}"
 #!/usr/bin/env bash
 set -euETo pipefail
 shopt -s inherit_errexit
-source ${PRT_VENV_ROOT}/ansible/bin/activate
+source "${venv_path}"/bin/activate
 trap "deactivate" EXIT
 script=\$(basename "\$0")
 exec \${script} "\$@"
 EOF
-chmod +x ${PRT_ROOT}/bin/ansible
+chmod +x "${script_path}"
 # Create links for each tool
-for tool in $(find /prt/venv/ansible/bin/ -name "ansible-*" -executable -exec basename {} \;); do
-    ( cd ${PRT_ROOT}/bin; ln -s ansible ${tool} )
+for tool in $(find "${venv_path}"/bin/ -name "ansible-*" -executable -exec basename {} \;); do
+    ( cd ${PRT_ROOT}/bin; ln -s $(basename "${script_path}") ${tool} )
 done

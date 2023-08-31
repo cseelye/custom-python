@@ -4,6 +4,8 @@ Custom Python Runtime
 All notable changes to the runtime will be documented in this file. Versioning follows the format vX, where X is the version number.
 
 ## [Unreleased]
+### Fixed
+* Fix makefile dependencies
 
 ## [v9] - 2023-08-31
 ### Fixed

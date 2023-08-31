@@ -71,6 +71,12 @@ INTERACTIVE := $(shell if tty -s; then echo "-it"; else echo ""; fi)
 # Dependecies that should cause rebuild of the builder container image
 BUILDER_DEPS = Dockerfile
 
+# Dependecies that should cause rebuild of the package
+PACKAGE_DEPS = build-runtime $(wildcard post-patch/*.patch) $(wildcard python-requirements/*.txt)
+
+# Dependecies that should cause rebuild of the dev package
+PACKAGE_DEPS_DEV = build-runtime $(shell find ./dev -type f -print 2>/dev/null || true)
+
 # Build the builder container image
 builder-image: .builder-image
 .builder-image: $(BUILDER_DEPS)
@@ -87,7 +93,8 @@ $(OUTPUT_DIR):
 
 # Build the runtime package
 package: $(FULL_PACKAGE_NAME)
-$(FULL_PACKAGE_NAME): .builder-image build-runtime | $(OUTPUT_DIR)
+package-dev: $(FULL_PACKAGE_NAME_DEV)
+$(FULL_PACKAGE_NAME) $(FULL_PACKAGE_NAME_DEV): .builder-image $(PACKAGE_DEPS) $(PACKAGE_DEPS_DEV) | $(OUTPUT_DIR)
 	docker container run $(INTERACTIVE) --rm $(VERBOSE) $(CACHE) \
 		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 		-v $(shell pwd):/work -w /work \
@@ -98,7 +105,8 @@ $(FULL_PACKAGE_NAME): .builder-image build-runtime | $(OUTPUT_DIR)
 		$(BUILDER_IMAGE_NAME) \
 		./build-runtime
 package-arm: $(FULL_PACKAGE_NAME_ARM)
-$(FULL_PACKAGE_NAME_ARM): .builder-image-arm build-runtime | $(OUTPUT_DIR)
+package-dev-arm: $(FULL_PACKAGE_NAME_DEV_ARM)
+$(FULL_PACKAGE_NAME_ARM) $(FULL_PACKAGE_NAME_DEV_ARM): .builder-image-arm $(PACKAGE_DEPS) $(PACKAGE_DEPS_DEV) | $(OUTPUT_DIR)
 	docker container run --platform=arm64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE) \
 	-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 	-v $(shell pwd):/work -w /work \
@@ -109,8 +117,6 @@ $(FULL_PACKAGE_NAME_ARM): .builder-image-arm build-runtime | $(OUTPUT_DIR)
 	-e MTUNE= \
 	$(BUILDER_IMAGE_NAME_ARM) \
 	./build-runtime
-$(FULL_PACKAGE_NAME_DEV): $(FULL_PACKAGE_NAME) ;
-$(FULL_PACKAGE_NAME_DEV_ARM): $(FULL_PACKAGE_NAME_ARM) ;
 
 # Test the runtime in a fresh container image
 test: $(FULL_PACKAGE_NAME)
