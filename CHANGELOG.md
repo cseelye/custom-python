@@ -5,6 +5,12 @@ All notable changes to the runtime will be documented in this file. Versioning f
 
 ## [Unreleased]
 
+## [v11] - 2023-10-02
+### Changed
+* Constrain pylint to <3.0 for pydantic plugin
+### Added
+* Add pexpect package
+
 ## [v10] - 2023-09-21
 ### Added
 * Add wheel package to devcontainer

@@ -4,7 +4,7 @@ coverage
 debugpy
 graphviz
 httpx
-pylint
+pylint<3.0 # for pydantic plugin
 pytest
 pytest-timeout
 ruff
