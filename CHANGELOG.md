@@ -5,6 +5,10 @@ All notable changes to the runtime will be documented in this file. Versioning f
 
 ## [Unreleased]
 
+## [v12] - 2023-10-06
+### Added
+* Add pytest-timestamper to devcontainer
+
 ## [v11] - 2023-10-02
 ### Changed
 * Constrain pylint to <3.0 for pydantic plugin

@@ -127,16 +127,16 @@ $(FULL_PACKAGE_NAME_ARM) $(FULL_PACKAGE_NAME_DEV_ARM): .builder-image-arm $(PACK
 
 # Test the runtime in a fresh container image
 test: $(FULL_PACKAGE_NAME)
-	docker image build --platform=amd64 -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker image build --platform=amd64 --progress=plain --no-cache -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
 test-arm: $(FULL_PACKAGE_NAME_ARM)
-	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker image build --platform=arm64 --progress=plain --no-cache -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME_ARM) ./test-runtime
 test-dev: $(FULL_PACKAGE_NAME_DEV)
-	docker image build --platform=amd64 -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker image build --platform=amd64 --progress=plain --no-cache -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
 test-arm-dev: $(FULL_PACKAGE_NAME_DEV_ARM)
-	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker image build --platform=arm64 --progress=plain --no-cache -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
 test-all: test test-dev test-arm test-arm-dev ;
 
@@ -161,6 +161,7 @@ clobber: clean
 # Upload the cache files
 upload-cache:
 	scp $(OUTPUT_DIR)/cache_* ${FILESERVER}
+
 
 # Print the value of a variable
 print-%  : ; @echo $*=$($*)

@@ -1,6 +1,7 @@
 .builder-image*
 *.tgz
 *.manifest.json
+*.deb
 out
 
 # Byte-compiled / optimized / DLL files

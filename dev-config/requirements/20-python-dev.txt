@@ -7,6 +7,7 @@ httpx
 pylint<3.0 # for pydantic plugin
 pytest
 pytest-timeout
+pytest-timestamper
 ruff
 tox
 wheel
