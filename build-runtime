@@ -13,6 +13,7 @@ RUNTIME_VER=${RUNTIME_VER-v0}
 CACHE_URL=http://localhost:9000/prt/cache
 MTUNE=${MTUNE-icelake-server}
 USE_CACHE=${USE_CACHE-1}
+USE_PIP_CACHE=${USE_PIP_CACHE-1}
 PRT_VENV_ROOT=${PRT_VENV_ROOT-${PRT_ROOT}/venv}
 
 COLOR_ESC="\e["
@@ -115,17 +116,17 @@ done
 # Download the pip cache to preload it
 PIP_CACHE_FILE="cache_prt_pip_$(uname -m).tgz"
 mkdir -p /root/.cache
-if [[ ${USE_CACHE} -eq 1 ]]; then
-    if curl -fsSL --head ${CACHE_URL}/${PIP_CACHE_FILE} &>/dev/null; then
-        echo ">>> Preloading pip cache"
-        curl -fsSL ${CACHE_URL}/${PIP_CACHE_FILE} | tar -xz -C /root/.cache || true
-        echo
-    fi
+if [[ ${USE_PIP_CACHE} -eq 1 ]] && curl -fsSL --head ${CACHE_URL}/${PIP_CACHE_FILE} &>/dev/null; then
+    echo ">>> Preloading pip cache"
+    curl -fsSL ${CACHE_URL}/${PIP_CACHE_FILE} | tar -xz -C /root/.cache || true
+    echo
 fi
 
-# Configure pip and install python packages
-CONSTRAINT_FILE="config/constraints.txt"
+# Configure and upgrade pip
 cp ./pip.conf "${PRT_ROOT}"
+"${PRT_ROOT}"/bin/pip install --upgrade pip
+# Install python packages
+CONSTRAINT_FILE="config/constraints.txt"
 for req_file in $(find ./config/requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
     ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --constraint ${CONSTRAINT_FILE} --requirement "${req_file}"
@@ -186,10 +187,9 @@ done
 # Download the pip cache to preload it
 PIP_DEV_CACHE_FILE="cache_prt_dev_pip_$(uname -m).tgz"
 mkdir -p /root/.cache
-if curl -fsSL --head ${CACHE_URL}/${PIP_DEV_CACHE_FILE} &>/dev/null; then
+if [[ ${USE_PIP_CACHE} -eq 1 ]] && curl -fsSL --head ${CACHE_URL}/${PIP_DEV_CACHE_FILE} &>/dev/null; then
     echo ">>> Preloading dev pip cache"
     curl -fsSL ${CACHE_URL}/${PIP_DEV_CACHE_FILE} | tar -xz -C /root/.cache || true
-    echo
 fi
 
 # Install python packages

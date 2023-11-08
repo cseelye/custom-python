@@ -53,9 +53,12 @@ ifeq ($(V),1)
 endif
 
 # Set cache flag
-CACHE=
-ifeq ($(NO_CACHE),1)
-  CACHE=-e USE_CACHE=0
+CACHE_ARG=
+ifeq ($(USE_PIP_CACHE),0)
+  CACHE_ARG = -e USE_PIP_CACHE=0
+endif
+ifeq ($(USE_CACHE),0)
+  CACHE_ARG = -e USE_CACHE=0 -e USE_PIP_CACHE=0
 endif
 
 # Make OUTPUT_DIR an absolute path from ARTIFACT_DIR
@@ -102,7 +105,7 @@ $(OUTPUT_DIR):
 package: $(FULL_PACKAGE_NAME)
 package-dev: $(FULL_PACKAGE_NAME_DEV)
 $(FULL_PACKAGE_NAME) $(FULL_PACKAGE_NAME_DEV): .builder-image $(PACKAGE_DEPS) $(PACKAGE_DEPS_DEV) | $(OUTPUT_DIR)
-	docker container run --platform=amd64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE) \
+	docker container run --platform=amd64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
 		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 		-v $(shell pwd):/work -w /work \
 		-e RUNTIME_VER=$(PACKAGE_VERSION) \
@@ -114,7 +117,7 @@ $(FULL_PACKAGE_NAME) $(FULL_PACKAGE_NAME_DEV): .builder-image $(PACKAGE_DEPS) $(
 package-arm: $(FULL_PACKAGE_NAME_ARM)
 package-dev-arm: $(FULL_PACKAGE_NAME_DEV_ARM)
 $(FULL_PACKAGE_NAME_ARM) $(FULL_PACKAGE_NAME_DEV_ARM): .builder-image-arm $(PACKAGE_DEPS) $(PACKAGE_DEPS_DEV) | $(OUTPUT_DIR)
-	docker container run --platform=arm64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE) \
+	docker container run --platform=arm64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
 	-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 	-v $(shell pwd):/work -w /work \
 	-e RUNTIME_VER=$(PACKAGE_VERSION) \
@@ -213,6 +216,8 @@ help:
 	echo -e "  make builder-image                    Build the docker image used to build the runtime"; \
 	echo -e "  make package-arm                      Build the runtime (arm64) and package it as a tarball in the current directory"; \
 	echo -e "  make builder-image-arm                Build the docker image (arm64) used to build the runtime"; \
+	echo -e "$(MAGENTA)NO_PACKAGE_CACHE=1$(COLOR_RESET) can be used to build without using cached pip packages"; \
+	echo -e "$(MAGENTA)NO_CACHE=1$(COLOR_RESET) can be used to build without using any cached python/pip packages"; \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Testing:$(COLOR_RESET)"; \
 	echo -e "  make test                             Install the package in a fresh container and test it"; \
