@@ -1,0 +1,6 @@
+Package: ${PACKAGE}
+Version: ${PACKAGE_VERSION}
+Maintainer: ${PACKAGE_MAINTAINER}
+Architecture: ${PACKAGE_ARCH}
+Description: ${PACKAGE_DESC}
+Depends: ca-certificates, openssl, libsqlite3-0

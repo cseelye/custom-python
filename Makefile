@@ -1,5 +1,7 @@
 SHELL := /usr/bin/env bash -o pipefail
 PACKAGE_PREFIX ?= prt
+PACKAGE_DESC ?= Custom python runtime
+PACKAGE_MAINTAINER ?= John Doe
 PACKAGE_VERSION ?= $(shell git tag --list 'v*' | sort -V | tail -n1 || echo v0)
 ifeq ($(PACKAGE_VERSION),)
 PACKAGE_VERSION := v0
@@ -85,10 +87,12 @@ endif
 BUILDER_DEPS = Dockerfile
 
 # Dependecies that should cause rebuild of the package
-PACKAGE_DEPS = build-runtime $(shell find ./config -type f -print 2>/dev/null || true)
+RUNTIME_DEPS = build-runtime $(shell find ./config -type f -print 2>/dev/null || true)
 
 # Dependecies that should cause rebuild of the dev package
-PACKAGE_DEPS_DEV = build-runtime $(shell find ./dev-config -type f -print 2>/dev/null || true)
+RUNTIME_DEPS_DEV = build-runtime $(shell find ./dev-config -type f -print 2>/dev/null || true)
+
+DEB_DEPS = build-deb $(shell find ./deb-config -type f -print 2>/dev/null || true)
 
 # Build the builder container image
 builder-image: .builder-image
@@ -105,9 +109,9 @@ $(OUTPUT_DIR):
 	mkdir -p $(OUTPUT_DIR)
 
 # Build the runtime package
-package: $(FULL_PACKAGE_NAME)
-package-dev: $(FULL_PACKAGE_NAME_DEV)
-$(FULL_PACKAGE_NAME) $(FULL_PACKAGE_NAME_DEV): .builder-image $(PACKAGE_DEPS) $(PACKAGE_DEPS_DEV) | $(OUTPUT_DIR)
+runtime: $(FULL_PACKAGE_NAME)
+runtime-dev: $(FULL_PACKAGE_NAME_DEV)
+$(FULL_PACKAGE_NAME) $(FULL_PACKAGE_NAME_DEV): .builder-image $(RUNTIME_DEPS) $(RUNTIME_DEPS_DEV) | $(OUTPUT_DIR)
 	docker container run --platform=amd64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
 		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 		-v $(shell pwd):/work -w /work \
@@ -118,9 +122,9 @@ $(FULL_PACKAGE_NAME) $(FULL_PACKAGE_NAME_DEV): .builder-image $(PACKAGE_DEPS) $(
 		-e PYTHON_VERSION=$(PYTHON_VERSION) \
 		$(BUILDER_IMAGE_NAME) \
 		./build-runtime
-package-arm: $(FULL_PACKAGE_NAME_ARM)
-package-dev-arm: $(FULL_PACKAGE_NAME_DEV_ARM)
-$(FULL_PACKAGE_NAME_ARM) $(FULL_PACKAGE_NAME_DEV_ARM): .builder-image-arm $(PACKAGE_DEPS) $(PACKAGE_DEPS_DEV) | $(OUTPUT_DIR)
+runtime-arm: $(FULL_PACKAGE_NAME_ARM)
+runtime-dev-arm: $(FULL_PACKAGE_NAME_DEV_ARM)
+$(FULL_PACKAGE_NAME_ARM) $(FULL_PACKAGE_NAME_DEV_ARM): .builder-image-arm $(RUNTIME_DEPS) $(RUNTIME_DEPS_DEV) | $(OUTPUT_DIR)
 	docker container run --platform=arm64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
 		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 		-v $(shell pwd):/work -w /work \
@@ -156,13 +160,29 @@ run-dev: $(FULL_PACKAGE_NAME_DEV)
 	docker image build $(LOCAL_PLATFORM) -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run $(LOCAL_PLATFORM) --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
 
+# Build the debian package
+deb: $(FULL_PACKAGE_NAME) .builder-image $(DEB_DEPS) | $(OUTPUT_DIR)
+	docker container run --platform=amd64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
+		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
+		-v $(shell pwd):/work -w /work \
+		-e PACKAGE="$(PACKAGE_PREFIX)" \
+		-e PACKAGE_ARCH=amd64 \
+		-e PACKAGE_VERSION=$(PACKAGE_VERSION) \
+		-e PACKAGE_DESC="$(PACKAGE_DESC)" \
+		-e PACKAGE_MAINTAINER="$(PACKAGE_MAINTAINER)" \
+		-e PACKAGE_NAME=$(PACKAGE_NAME) \
+		-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV) \
+		-e PRT_ROOT=$(PRT_ROOT) \
+		$(BUILDER_IMAGE_NAME) \
+		./build-deb
+
 # Clean: remove output files
 clean:
-	$(RM) $(PACKAGE_PREFIX)_*.tgz  $(PACKAGE_PREFIX)_*.json cache_*
-	$(RM) -r $(OUTPUT_DIR)
+	$(RM) $(PACKAGE_PREFIX)_*.tgz  $(PACKAGE_PREFIX)_*.json
 
 # Clobber: clean output files and delete build containers
 clobber: clean
+	$(RM) -r $(OUTPUT_DIR)
 	$(RM) .builder-image*
 	docker image rm $(BUILDER_IMAGE_NAME) $(BUILDER_IMAGE_NAME_ARM) $(TEST_IMAGE_NAME) $(TEST_IMAGE_NAME_ARM) || true
 
@@ -217,9 +237,11 @@ help:
 	{ \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Build the runtime:$(COLOR_RESET)"; \
-	echo -e "  make package                          Build the runtime and package it as a tarball in the current directory"; \
+	echo -e "  make runtime                          Build the runtime and package it as a tarball in the output directory"; \
+	echo -e "  make deb                    	         Build the runtime and package it as a deb in the output directory"; \
 	echo -e "  make builder-image                    Build the docker image used to build the runtime"; \
-	echo -e "  make package-arm                      Build the runtime (arm64) and package it as a tarball in the current directory"; \
+	echo -e "  make runtime-arm                      Build the runtime (arm64) and package it as a tarball in the output directory"; \
+	echo -e "  make deb-arm                          Build the runtime (arm64) and package it as a deb in the output directory"; \
 	echo -e "  make builder-image-arm                Build the docker image (arm64) used to build the runtime"; \
 	echo -e "$(MAGENTA)NO_PACKAGE_CACHE=1$(COLOR_RESET) can be used to build without using cached pip packages"; \
 	echo -e "$(MAGENTA)NO_CACHE=1$(COLOR_RESET) can be used to build without using any cached python/pip packages"; \
@@ -234,8 +256,8 @@ help:
 	echo -e "  make run-dev                          Install the dev package in a fresh container and get an interactive prompt"; \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Cleanup:$(COLOR_RESET)"; \
-	echo -e "  make clean                            Delete the package and cache files"; \
-	echo -e "  make clobber                          Delete the package, cache files, and docker images"; \
+	echo -e "  make clean                            Delete the runtime package"; \
+	echo -e "  make clobber                          Delete the runtime package, cache files, and docker images"; \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Misc:$(COLOR_RESET)"; \
 	echo -e "  make upload-cache                     Upload the cache files to the cache server, replacing what is there."; \

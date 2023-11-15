@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euETo pipefail
+shopt -s inherit_errexit
+set -x
+
+PACKAGE=${PACKAGE-prt}
+PACKAGE_VERSION=${PACKAGE_VERSION-v0}
+PACKAGE_ARCH=${PACKAGE_ARCH-x86_64}
+PACKAGE_DESC=${PACKAGE_DESC-Custom python runtime}
+PACKAGE_MAINTAINER=${PACKAGE_MAINTAINER-John Doe}
+
+PACKAGE_DEV=${PACKAGE_DEV-${PACKAGE}-dev}
+PACKAGE_DESC_DEV=${PACKAGE_DESC_DEV-${PACKAGE_DESC} (development version)}
+
+PACKAGE_NAME=${PACKAGE_NAME-prt.tgz}
+PACKAGE_NAME_DEV=${PACKAGE_NAME_DEV-prt-dev.tgz}
+OUTPUT_DIR=${OUTPUT_DIR-/output}
+
+
+# Ensure package version starts with a digit
+PACKAGE_VERSION=$(echo ${PACKAGE_VERSION} | sed 's/^v//')
+
+# Build the debian package for the runtime
+
+WORK_DIR=$(mktemp -d)
+mkdir -p ${WORK_DIR}
+
+# Copy the control files/scripts to the staging area
+rsync -av deb-config/ ${WORK_DIR}/
+
+# Fill in the package info
+(
+    export PACKAGE
+    export PACKAGE_VERSION
+    export PACKAGE_ARCH
+    export PACKAGE_DESC
+    export PACKAGE_MAINTAINER
+    cat deb-config/DEBIAN/control | envsubst | tee ${WORK_DIR}/DEBIAN/control
+)
+
+# Extract the runtime package to the staging area
+mkdir -p ${WORK_DIR}/${PRT_ROOT}
+tar -xzf "${OUTPUT_DIR}/${PACKAGE_NAME}" -C ${WORK_DIR}/${PRT_ROOT}
+
+# Build the package
+dpkg-deb --build ${WORK_DIR} ${OUTPUT_DIR}
+# ls -l
+# echo
+# ls -l ${WORK_DIR}
+# mv ${WORK_DIR}/*.deb ${OUTPUT_DIR}
+
+
+
+
+# Build the debian package for the DEV runtime
+WORK_DIR=$(mktemp -d)
+mkdir -p ${WORK_DIR}/${PRT_ROOT}
+
+# Copy the control files/scripts to the staging area
+rsync -av deb-config/ ${WORK_DIR}/
+
+# Fill in the package info
+(
+    export PACKAGE=${PACKAGE_DEV}
+    export PACKAGE_VERSION
+    export PACKAGE_ARCH
+    export PACKAGE_DESC=${PACKAGE_DESC_DEV}
+    export PACKAGE_MAINTAINER
+    cat deb-config/DEBIAN/control | envsubst | tee ${WORK_DIR}/DEBIAN/control
+)
+
+# Extract the runtime package to the staging area
+tar -xzf "${OUTPUT_DIR}/${PACKAGE_NAME_DEV}" -C ${WORK_DIR}/${PRT_ROOT}
+
+# Build the package
+dpkg-deb --build ${WORK_DIR} ${OUTPUT_DIR}
+# mv ${WORK_DIR}/*.deb ${OUTPUT_DIR}
