@@ -77,14 +77,30 @@ echo
 color ${MAGENTA} "* * * Building base python runtime version ${PYTHON_VERSION}"
 ( time (
 mkdir -p "${PRT_ROOT}"
-# Try to download a cached build of python
 CACHE_FILE="cache_prt_python_${PYTHON_VERSION}_$(uname -m).tgz"
-if [[ ${USE_CACHE} -eq 1 ]] && curl -fsSL --head ${CACHE_URL}/${CACHE_FILE} &>/dev/null; then
-    echo "Downloading cached build for python ${PYTHON_VERSION}"
-    curl -fsSL ${CACHE_URL}/${CACHE_FILE} -o /tmp/python.tgz
-    tar -xzf /tmp/python.tgz -C "${PRT_ROOT}"
+build_python=0
+if [[ ${USE_CACHE} -ne 1 ]]; then
+    build_python=1
 else
-# Build the python runtime
+# Try to find/download a cached build of python
+    if [[ -e ${OUTPUT_DIR}/${CACHE_FILE} ]]; then
+        echo "Using local cached build for python ${PYTHON_VERSION}"
+        tar -xzf ${OUTPUT_DIR}/${CACHE_FILE} -C "${PRT_ROOT}"
+        build_python=0
+    elif curl -fsSL --head ${CACHE_URL}/${CACHE_FILE} &>/dev/null; then
+        echo "Downloading cached build for python ${PYTHON_VERSION}"
+        curl -fsSL ${CACHE_URL}/${CACHE_FILE} -o /tmp/${CACHE_FILE}
+        chmod 777 /tmp/${CACHE_FILE}
+        tar -xzf /tmp/${CACHE_FILE} -C "${PRT_ROOT}"
+        mv /tmp/${CACHE_FILE} ${OUTPUT_DIR}/${CACHE_FILE}
+        build_python=0
+    else
+        echo "Could not find cached build for python ${PYTHON_VERSION}"
+        build_python=1
+    fi
+fi
+# Build the python runtime if there was no cache
+if [[ ${build_python} -eq 1 ]]; then
     export PYTHON_CONFIGURE_OPTS='--enable-optimizations --with-lto'
     if [[ -n ${MTUNE} ]]; then
         export PYTHON_CFLAGS="-mtune=${MTUNE}"
@@ -120,9 +136,14 @@ done
 # Download the pip cache to preload it
 PIP_CACHE_FILE="cache_prt_pip_$(uname -m).tgz"
 mkdir -p /root/.cache
-if [[ ${USE_PIP_CACHE} -eq 1 ]] && curl -fsSL --head ${CACHE_URL}/${PIP_CACHE_FILE} &>/dev/null; then
-    echo ">>> Preloading pip cache"
-    curl -fsSL ${CACHE_URL}/${PIP_CACHE_FILE} | tar -xz -C /root/.cache || true
+if [[ ${USE_PIP_CACHE} -eq 1 ]]; then
+    if [[ -e ${OUTPUT_DIR}/${PIP_CACHE_FILE} ]]; then
+        echo ">>> Preloading pip cache with local artifact"
+        tar -xzf ${OUTPUT_DIR}/${PIP_CACHE_FILE} -C /root/.cache
+    elif curl -fsSL --head ${CACHE_URL}/${PIP_CACHE_FILE} &>/dev/null; then
+        echo ">>> Preloading pip cache with downloaded artifact"
+        curl -fsSL ${CACHE_URL}/${PIP_CACHE_FILE} | tar -xz -C /root/.cache || true
+    fi
     echo
 fi
 
@@ -193,9 +214,15 @@ done
 # Download the pip cache to preload it
 PIP_DEV_CACHE_FILE="cache_prt_dev_pip_$(uname -m).tgz"
 mkdir -p /root/.cache
-if [[ ${USE_PIP_CACHE} -eq 1 ]] && curl -fsSL --head ${CACHE_URL}/${PIP_DEV_CACHE_FILE} &>/dev/null; then
-    echo ">>> Preloading dev pip cache"
-    curl -fsSL ${CACHE_URL}/${PIP_DEV_CACHE_FILE} | tar -xz -C /root/.cache || true
+if [[ ${USE_PIP_CACHE} -eq 1 ]]; then
+    if [[ -e ${OUTPUT_DIR}/${PIP_DEV_CACHE_FILE} ]]; then
+        echo ">>> Preloading dev pip cache with local artifact"
+        tar -xzf ${OUTPUT_DIR}/${PIP_DEV_CACHE_FILE} -C /root/.cache
+    elif curl -fsSL --head ${CACHE_URL}/${PIP_DEV_CACHE_FILE} &>/dev/null; then
+        echo ">>> Preloading dev pip cache with downloaded artifact"
+        curl -fsSL ${CACHE_URL}/${PIP_DEV_CACHE_FILE} | tar -xz -C /root/.cache || true
+    fi
+    echo
 fi
 
 # Install python packages

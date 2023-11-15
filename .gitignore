@@ -3,6 +3,7 @@
 *.manifest.json
 *.deb
 out
+cache
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

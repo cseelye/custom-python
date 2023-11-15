@@ -1,0 +1,2 @@
+# Constraints from other packages to make sure we don't upgrade dependencies too far
+pylint<3.0
