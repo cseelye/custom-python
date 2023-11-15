@@ -4,6 +4,8 @@ Custom Python Runtime
 All notable changes to the runtime will be documented in this file. Versioning follows the format vX, where X is the version number.
 
 ## [Unreleased]
+
+## [v13] - 2023-11-15
 ### Changed
 * Add build options for using or skipping pip cache
 * Update pip to latest version when runtime is built
