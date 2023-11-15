@@ -152,9 +152,13 @@ cp ./pip.conf "${PRT_ROOT}"
 "${PRT_ROOT}"/bin/pip install --upgrade pip
 # Install python packages
 CONSTRAINT_FILE="${PRT_CONFIG_DIR}/constraints.txt"
+CONSTRAINT_ARG=
+if [[ -e ${CONSTRAINT_FILE} ]]; then
+    CONSTRAINT_ARG="--constraint ${CONSTRAINT_FILE}"
+fi
 for req_file in $(find ./${PRT_CONFIG_DIR}/requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
-    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --constraint ${CONSTRAINT_FILE} --requirement "${req_file}"
+    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall ${CONSTRAINT_ARG} --requirement "${req_file}"
       "${PRT_ROOT}"/bin/pip check || true ) 2>&1 | indent
     echo
 done
@@ -227,9 +231,12 @@ fi
 
 # Install python packages
 DEV_CONSTRAINT_FILE=${PRT_DEV_CONFIG_DIR}/constraints.txt
+if [[ -e ${DEV_CONSTRAINT_FILE} ]]; then
+    CONSTRAINT_ARG+=" --constraint ${DEV_CONSTRAINT_FILE}"
+fi
 for req_file in $(find ./${PRT_DEV_CONFIG_DIR}/requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
-    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --constraint ${CONSTRAINT_FILE} --constraint ${DEV_CONSTRAINT_FILE} --requirement "${req_file}"
+    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall ${CONSTRAINT_ARG} --requirement "${req_file}"
       "${PRT_ROOT}"/bin/pip check || true ) 2>&1 | indent
     echo
 done
