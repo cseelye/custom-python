@@ -10,11 +10,14 @@ PACKAGE_NAME_DEV=${PACKAGE_NAME_DEV-prt-dev.tgz}
 PRT_ROOT=${PRT_ROOT-/prt}
 OUTPUT_DIR=${OUTPUT_DIR-/output}
 RUNTIME_VER=${RUNTIME_VER-v0}
-CACHE_URL=http://localhost:9000/prt/cache
+CACHE_URL=${CACHE_URL:-http://localhost:9000/prt/cache}
 MTUNE=${MTUNE-icelake-server}
 USE_CACHE=${USE_CACHE-1}
 USE_PIP_CACHE=${USE_PIP_CACHE-1}
 PRT_VENV_ROOT=${PRT_VENV_ROOT-${PRT_ROOT}/venv}
+
+PRT_CONFIG_DIR=${PRT_CONFIG_DIR-config}
+PRT_DEV_CONFIG_DIR=${PRT_DEV_CONFIG_DIR-dev-config}
 
 COLOR_ESC="\e["
 COLOR_OFF="${COLOR_ESC}0m"
@@ -92,7 +95,7 @@ else
         VERBOSE="--verbose"
     fi
 
-    if [[ -n "$(find ./config/pre-patch -name  "*.patch" 2>/dev/null || true)" ]]; then
+    if [[ -n "$(find ./${PRT_CONFIG_DIR}/pre-patch -name  "*.patch" 2>/dev/null || true)" ]]; then
         cat  pre-patch/*.patch | python-build -p ${VERBOSE} ${PYTHON_VERSION} "${PRT_ROOT}"
     else
         python-build ${VERBOSE} ${PYTHON_VERSION} "${PRT_ROOT}"
@@ -100,6 +103,7 @@ else
     echo
     echo ">>> Updating python cache object"
     tar -czf /tmp/${CACHE_FILE} -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
+    chmod 777 /tmp/${CACHE_FILE}
     mv /tmp/${CACHE_FILE} "${OUTPUT_DIR}/"
     ls -lh  "${OUTPUT_DIR}/${CACHE_FILE}"
 fi
@@ -107,7 +111,7 @@ fi
 echo
 
 # Apply any post-patches
-for patch_file in $(find ./config/post-patch -type f -name "*.patch" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+for patch_file in $(find ./${PRT_CONFIG_DIR}/post-patch -type f -name "*.patch" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Applying patch $(basename ${patch_file})"
     ( time patch -d "${PRT_ROOT}" -p2 < "${patch_file}" ) 2>&1 | indent
     echo
@@ -126,8 +130,8 @@ fi
 cp ./pip.conf "${PRT_ROOT}"
 "${PRT_ROOT}"/bin/pip install --upgrade pip
 # Install python packages
-CONSTRAINT_FILE="config/constraints.txt"
-for req_file in $(find ./config/requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+CONSTRAINT_FILE="${PRT_CONFIG_DIR}/constraints.txt"
+for req_file in $(find ./${PRT_CONFIG_DIR}/requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
     ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --constraint ${CONSTRAINT_FILE} --requirement "${req_file}"
       "${PRT_ROOT}"/bin/pip check || true ) 2>&1 | indent
@@ -135,7 +139,7 @@ for req_file in $(find ./config/requirements -type f -name "*.txt" -exec readlin
 done
 
 # Run customization scripts
-for script in $(find ./config/scripts -type f -executable -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+for script in $(find ./${PRT_CONFIG_DIR}/scripts -type f -executable -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Running customization script $(basename ${script})"
     ( export PRT_ROOT
       export PRT_VENV_ROOT
@@ -149,6 +153,7 @@ echo ">>> Updating pip cache object"
 (
 echo
 tar -czf /tmp/${PIP_CACHE_FILE} -C /root/.cache pip
+chmod 777 /tmp/${PIP_CACHE_FILE}
 mv /tmp/${PIP_CACHE_FILE} ${OUTPUT_DIR}/
 echo
 ) 2>&1 | indent
@@ -163,9 +168,10 @@ color ${MAGENTA} "* * * Creating package"
 tmpfile="$(mktemp)"
 ( time (
 tar -czf "${tmpfile}" -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
-chmod +r "${tmpfile}"
+chmod 777 "${tmpfile}"
 mv "${tmpfile}" "${OUTPUT_DIR}/${PACKAGE_NAME}"
 cp "${PRT_ROOT}/manifest.json" "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}.manifest.json"
+chmod 664 "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}.manifest.json"
 ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}"*
 ) ) 2>&1 | indent
 
@@ -178,7 +184,7 @@ color ${CYAN} "===================================================="
 echo
 
 # Apply any patches
-for patch_file in $(find ./dev-config/patch -type f -name "*.patch" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+for patch_file in $(find ./${PRT_DEV_CONFIG_DIR}/patch -type f -name "*.patch" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Applying patch $(basename ${patch_file})"
     ( time patch -d "${PRT_ROOT}" -p2 <  "${patch_file}" ) 2>&1 | indent
     echo
@@ -193,15 +199,16 @@ if [[ ${USE_PIP_CACHE} -eq 1 ]] && curl -fsSL --head ${CACHE_URL}/${PIP_DEV_CACH
 fi
 
 # Install python packages
-for req_file in $(find ./dev-config/requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+DEV_CONSTRAINT_FILE=${PRT_DEV_CONFIG_DIR}/constraints.txt
+for req_file in $(find ./${PRT_DEV_CONFIG_DIR}/requirements -type f -name "*.txt" -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Installing packages from $(basename ${req_file})"
-    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --constraint ${CONSTRAINT_FILE} --requirement "${req_file}"
+    ( time "${PRT_ROOT}"/bin/pip install --upgrade --force-reinstall --constraint ${CONSTRAINT_FILE} --constraint ${DEV_CONSTRAINT_FILE} --requirement "${req_file}"
       "${PRT_ROOT}"/bin/pip check || true ) 2>&1 | indent
     echo
 done
 
 # Run customization scripts
-for script in $(find ./dev-config/scripts -type f -executable -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
+for script in $(find ./${PRT_DEV_CONFIG_DIR}/scripts -type f -executable -exec readlink -f {} \; 2>/dev/null | sort -V || true); do
     color ${MAGENTA} "* * * Running customization script $(basename ${script})"
     ( export PRT_ROOT
       export PRT_VENV_ROOT
@@ -215,6 +222,7 @@ echo ">>> Updating dev pip cache object"
 (
 echo
 tar -czf /tmp/${PIP_DEV_CACHE_FILE} -C /root/.cache pip
+chmod 777 /tmp/${PIP_DEV_CACHE_FILE}
 mv /tmp/${PIP_DEV_CACHE_FILE} ${OUTPUT_DIR}/
 echo
 ) 2>&1 | indent
@@ -229,9 +237,10 @@ color ${MAGENTA} "* * * Creating dev package"
 tmpfile="$(mktemp)"
 ( time (
 tar -czf "${tmpfile}" -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
-chmod +r "${tmpfile}"
+chmod 777 "${tmpfile}"
 mv "${tmpfile}" "${OUTPUT_DIR}/${PACKAGE_NAME_DEV}"
 cp "${PRT_ROOT}/manifest.json" "${OUTPUT_DIR}/${PACKAGE_NAME_DEV%%.*}.manifest.json"
+chmod 664 "${OUTPUT_DIR}/${PACKAGE_NAME_DEV%%.*}.manifest.json"
 ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME_DEV%%.*}"*
 ) ) 2>&1 | indent
 

@@ -1,1 +1,2 @@
 # Constraints from other packages to make sure we don't upgrade dependencies too far
+anyio<4.0.0,>=3.7.1

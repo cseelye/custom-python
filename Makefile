@@ -1,6 +1,9 @@
 SHELL := /usr/bin/env bash -o pipefail
 PACKAGE_PREFIX ?= prt
 PACKAGE_VERSION ?= $(shell git tag --list 'v*' | sort -V | tail -n1 || echo v0)
+ifeq ($(PACKAGE_VERSION),)
+PACKAGE_VERSION := v0
+endif
 PYTHON_VERSION ?= 3.11.5
 PRT_ROOT ?= /prt
 BUILDER_IMAGE_NAME ?= prt-builder
@@ -8,7 +11,7 @@ TEST_IMAGE_NAME ?= prt-tester
 ARTIFACT_DIR ?= out
 PACKAGE_NAME ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION).tgz
 PACKAGE_NAME_DEV ?= $(PACKAGE_PREFIX)-dev_$(PACKAGE_VERSION).tgz
-FILESERVER ?= localhost:/http/prt/cache
+CACHE_URL ?= http://172.17.0.1:9000/prt/cache
 BUILDER_IMAGE_NAME_ARM ?= prt-builder-arm
 PACKAGE_NAME_ARM ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION)_aarch64.tgz
 PACKAGE_NAME_DEV_ARM ?= $(PACKAGE_PREFIX)-dev_$(PACKAGE_VERSION)_aarch64.tgz
@@ -34,7 +37,7 @@ env-file:
 	@echo "PACKAGE_PREFIX=$(PACKAGE_PREFIX)"
 	@echo "PACKAGE_EXT=$(PACKAGE_EXT)"
 	@echo "MANIFEST_EXT=$(MANIFEST_EXT)"
-	@echo "FILESERVER=$(FILESERVER)"
+	@echo "CACHE_URL=$(CACHE_URL)"
 	@echo "BUILDER_IMAGE_NAME=$(BUILDER_IMAGE_NAME)"
 	@echo "TEST_IMAGE_NAME=$(TEST_IMAGE_NAME)"
 	@echo "BUILDER_IMAGE_NAME_ARM=$(BUILDER_IMAGE_NAME_ARM)"
@@ -108,6 +111,7 @@ $(FULL_PACKAGE_NAME) $(FULL_PACKAGE_NAME_DEV): .builder-image $(PACKAGE_DEPS) $(
 	docker container run --platform=amd64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
 		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 		-v $(shell pwd):/work -w /work \
+		-e CACHE_URL="${CACHE_URL}" \
 		-e RUNTIME_VER=$(PACKAGE_VERSION) \
 		-e PACKAGE_NAME=$(PACKAGE_NAME) \
 		-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV) \
@@ -118,15 +122,16 @@ package-arm: $(FULL_PACKAGE_NAME_ARM)
 package-dev-arm: $(FULL_PACKAGE_NAME_DEV_ARM)
 $(FULL_PACKAGE_NAME_ARM) $(FULL_PACKAGE_NAME_DEV_ARM): .builder-image-arm $(PACKAGE_DEPS) $(PACKAGE_DEPS_DEV) | $(OUTPUT_DIR)
 	docker container run --platform=arm64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
-	-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
-	-v $(shell pwd):/work -w /work \
-	-e RUNTIME_VER=$(PACKAGE_VERSION) \
-	-e PACKAGE_NAME=$(PACKAGE_NAME_ARM) \
-	-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_ARM) \
-	-e PYTHON_VERSION=$(PYTHON_VERSION) \
-	-e MTUNE= \
-	$(BUILDER_IMAGE_NAME_ARM) \
-	./build-runtime
+		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
+		-v $(shell pwd):/work -w /work \
+		-e CACHE_URL="${CACHE_URL}" \
+		-e RUNTIME_VER=$(PACKAGE_VERSION) \
+		-e PACKAGE_NAME=$(PACKAGE_NAME_ARM) \
+		-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_ARM) \
+		-e PYTHON_VERSION=$(PYTHON_VERSION) \
+		-e MTUNE= \
+		$(BUILDER_IMAGE_NAME_ARM) \
+		./build-runtime
 
 # Test the runtime in a fresh container image
 test: $(FULL_PACKAGE_NAME)
@@ -163,7 +168,7 @@ clobber: clean
 
 # Upload the cache files
 upload-cache:
-	scp $(OUTPUT_DIR)/cache_* ${FILESERVER}
+	for ff in $$(ls $(OUTPUT_DIR)/cache_*); do curl --upload-file $${ff} $(CACHE_URL)/$$(basename $${ff}); done
 
 
 # Print the value of a variable
