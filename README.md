@@ -18,7 +18,7 @@ The easiest way to start is to create a `Makefile.vars` file to override the con
 | `PACKAGE_MAINTAINER` | Name of the maintainer, used for DEB packages. |
 
 ## Multi-Arch Builds
-The default build is for intel (x86_64/amd64) but there are also targets for arm (aarch64/arm64). Qemu/binfmt are required for building an architecture that is not your native CPU;. If you are using Docker Desktop it should be already configured for you, or on Linux/WSL install binfmt-support and qemu-static-user packages (those are the debian names, adjust to your distro).
+The default build is for intel (amd64/x86_64) but there are also targets for arm (arm64/aarch64). Qemu/binfmt are required for building an architecture that is not your native CPU;. If you are using Docker Desktop it should be already configured for you, or on Linux/WSL install binfmt-support and qemu-static-user packages (those are the debian names, adjust to your distro).
 
 ## Usage
 The default target (running `make` by itself) will print out the value of all of the variables. To build the runtime, use one of the targets for the artifact you want (eg `make runtime` or `make deb-arm`), or `make all` to build everything.

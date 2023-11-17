@@ -51,8 +51,10 @@ trap 'set +x; delay_shutdown' EXIT ERR
 exec &> >(log)
 
 
+LOCAL_ARCH=$(dpkg --print-architecture)
+
 color ${CYAN} "===================================================="
-color ${CYAN} "         Testing Python Runtime $([[ ${DEV_INSTALL} -eq 1 ]] && echo "(DEV) ")$(uname -m)"
+color ${CYAN} "         Testing Python Runtime $([[ ${DEV_INSTALL} -eq 1 ]] && echo "(DEV) ")${LOCAL_ARCH}"
 color ${CYAN} "===================================================="
 echo
 

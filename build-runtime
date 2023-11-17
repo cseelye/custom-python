@@ -65,19 +65,21 @@ trap 'set +x; delay_shutdown' EXIT ERR
 # Redirect all stdout/stderr from here on, to the log function
 exec &> >(log)
 
+LOCAL_ARCH=$(dpkg --print-architecture)
+
 # Change to the directory the script file is in
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 pushd "${SCRIPT_DIR}" &>/dev/null
 
 color ${CYAN} "===================================================="
-color ${CYAN} "        Building Python Runtime $(uname -m)"
+color ${CYAN} "        Building Python Runtime ${LOCAL_ARCH}"
 color ${CYAN} "===================================================="
 echo
 
 color ${MAGENTA} "* * * Building base python runtime version ${PYTHON_VERSION}"
 ( time (
 mkdir -p "${PRT_ROOT}"
-CACHE_FILE="cache_prt_python_${PYTHON_VERSION}_$(uname -m).tgz"
+CACHE_FILE="cache_prt_python_${PYTHON_VERSION}_${LOCAL_ARCH}.tgz"
 build_python=0
 if [[ ${USE_CACHE} -ne 1 ]]; then
     build_python=1
@@ -134,7 +136,7 @@ for patch_file in $(find ./${PRT_CONFIG_DIR}/post-patch -type f -name "*.patch" 
 done
 
 # Download the pip cache to preload it
-PIP_CACHE_FILE="cache_prt_pip_$(uname -m).tgz"
+PIP_CACHE_FILE="cache_prt_pip_${LOCAL_ARCH}.tgz"
 mkdir -p /root/.cache
 if [[ ${USE_PIP_CACHE} -eq 1 ]]; then
     if [[ -e ${OUTPUT_DIR}/${PIP_CACHE_FILE} ]]; then
@@ -204,7 +206,7 @@ ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}"*
 echo
 echo
 color ${CYAN} "===================================================="
-color ${CYAN} "     Building Python Runtime (DEV) $(uname -m)"
+color ${CYAN} "     Building Python Runtime (DEV) ${LOCAL_ARCH}"
 color ${CYAN} "===================================================="
 echo
 
@@ -216,7 +218,7 @@ for patch_file in $(find ./${PRT_DEV_CONFIG_DIR}/patch -type f -name "*.patch" -
 done
 
 # Download the pip cache to preload it
-PIP_DEV_CACHE_FILE="cache_prt_dev_pip_$(uname -m).tgz"
+PIP_DEV_CACHE_FILE="cache_prt_dev_pip_${LOCAL_ARCH}.tgz"
 mkdir -p /root/.cache
 if [[ ${USE_PIP_CACHE} -eq 1 ]]; then
     if [[ -e ${OUTPUT_DIR}/${PIP_DEV_CACHE_FILE} ]]; then

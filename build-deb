@@ -4,7 +4,6 @@ shopt -s inherit_errexit
 
 PACKAGE=${PACKAGE-prt}
 PACKAGE_VERSION=${PACKAGE_VERSION-v0}
-PACKAGE_ARCH=${PACKAGE_ARCH-x86_64}
 PACKAGE_DESC=${PACKAGE_DESC-Custom python runtime}
 PACKAGE_MAINTAINER=${PACKAGE_MAINTAINER-John Doe}
 
@@ -61,12 +60,14 @@ trap 'set +x; delay_shutdown' EXIT ERR
 exec &> >(log)
 
 
+LOCAL_ARCH=$(dpkg --print-architecture)
+
 # Ensure package version starts with a digit
 PACKAGE_VERSION=$(echo ${PACKAGE_VERSION} | sed 's/^v//')
 
 
 color ${CYAN} "===================================================="
-color ${CYAN} "      Building DEB for Python Runtime $(uname -m)"
+color ${CYAN} "      Building DEB for Python Runtime ${LOCAL_ARCH}"
 color ${CYAN} "===================================================="
 echo
 
@@ -85,7 +86,7 @@ echo
 (
     export PACKAGE
     export PACKAGE_VERSION
-    export PACKAGE_ARCH
+    export PACKAGE_ARCH=${LOCAL_ARCH}
     export PACKAGE_DESC
     export PACKAGE_MAINTAINER
     cat deb-config/DEBIAN/control | envsubst | tee ${WORK_DIR}/DEBIAN/control
@@ -111,7 +112,7 @@ echo
 
 
 color ${CYAN} "===================================================="
-color ${CYAN} "    Building DEB for Python Runtime (DEV) $(uname -m)"
+color ${CYAN} "    Building DEB for Python Runtime (DEV) ${LOCAL_ARCH}"
 color ${CYAN} "===================================================="
 echo
 
@@ -128,7 +129,7 @@ echo
 (
     export PACKAGE=${PACKAGE_DEV}
     export PACKAGE_VERSION
-    export PACKAGE_ARCH
+    export PACKAGE_ARCH=${LOCAL_ARCH}
     export PACKAGE_DESC=${PACKAGE_DESC_DEV}
     export PACKAGE_MAINTAINER
     cat deb-config/DEBIAN/control | envsubst | tee ${WORK_DIR}/DEBIAN/control

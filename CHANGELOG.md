@@ -7,6 +7,8 @@ All notable changes to the runtime will be documented in this file. Versioning f
 ### Added
 * Add debian packaging
 * Add optional Makefile.vars to override settings
+### Changed
+* use dpkg style architecture names everywhere
 
 ## [v13] - 2023-11-15
 ### Changed
