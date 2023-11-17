@@ -1,0 +1,11 @@
+FROM ubuntu:20.04 as target
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN apt-get update && apt-get install -y jq curl
+
+COPY test-runtime /test-runtime
+
+ARG DEB_PACKAGE=prt.deb
+ARG PRT_ROOT=/prt
+COPY ${DEB_PACKAGE} /tmp/
+RUN apt-get update && apt-get install -f /tmp/$(basename ${DEB_PACKAGE})

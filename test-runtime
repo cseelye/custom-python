@@ -51,6 +51,11 @@ trap 'set +x; delay_shutdown' EXIT ERR
 exec &> >(log)
 
 
+color ${CYAN} "===================================================="
+color ${CYAN} "         Testing Python Runtime $([[ ${DEV_INSTALL} -eq 1 ]] && echo "(DEV) ")$(uname -m)"
+color ${CYAN} "===================================================="
+echo
+
 
 # Test the manifest is present and parsable
 color ${MAGENTA} "===================================================="

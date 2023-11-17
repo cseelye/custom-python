@@ -29,7 +29,7 @@ RUN apt-get update && \
 
 # Install pyenv
 ARG PYENV_ROOT
-RUN curl https://pyenv.run | bash
+RUN curl -s -S -L https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
 COPY pyenv_shell.sh ${PYENV_ROOT}/pyenv_shell.sh
 RUN ${PYENV_ROOT}/plugins/python-build/install.sh
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euETo pipefail
 shopt -s inherit_errexit
-set -x
 
 PACKAGE=${PACKAGE-prt}
 PACKAGE_VERSION=${PACKAGE_VERSION-v0}
@@ -16,17 +15,71 @@ PACKAGE_NAME=${PACKAGE_NAME-prt.tgz}
 PACKAGE_NAME_DEV=${PACKAGE_NAME_DEV-prt-dev.tgz}
 OUTPUT_DIR=${OUTPUT_DIR-/output}
 
+COLOR_ESC="\e["
+COLOR_OFF="${COLOR_ESC}0m"
+COLOR_BOLD="${COLOR_ESC}1m"
+COLOR_FAINT="${COLOR_ESC}2m"
+RESET="\e[39;49;00m"
+BLACK="${COLOR_ESC}30m$COLOR_BOLD"
+RED="${COLOR_ESC}31m$COLOR_BOLD"
+GREEN="${COLOR_ESC}32m$COLOR_BOLD"
+YELLOW="${COLOR_ESC}33m$COLOR_BOLD"
+BLUE="${COLOR_ESC}34m$COLOR_BOLD"
+MAGENTA="${COLOR_ESC}35m$COLOR_BOLD"
+CYAN="${COLOR_ESC}36m$COLOR_BOLD"
+WHITE="${COLOR_ESC}37m$COLOR_BOLD"
+
+color() {
+    echo -e "${1}${2}${COLOR_OFF}"
+}
+indent() {
+    spaces=${1-4}
+    sed -u "s/^/$(printf "%${spaces}s")/";
+}
+
+log() {
+    if [[ $# -eq 0 ]] ; then
+        while IFS= read -r line ; do
+            # printf "$(date) | %s\n" "${line}"
+            echo "$(date) | ${line}"
+        done
+    else
+        echo "$(date) | $@"
+    fi
+}
+
+delay_shutdown() {
+    echo
+    date -ud "@$SECONDS" "+Total runtime: %Hh%Mm%Ss"
+    # This is a hack to allow a little time for the log function to finish and flush stdout
+    #    before the script exits and container shuts down.
+    sleep 0.5
+}
+trap 'set +x; delay_shutdown' EXIT ERR
+
+# Redirect all stdout/stderr from here on, to the log function
+exec &> >(log)
+
 
 # Ensure package version starts with a digit
 PACKAGE_VERSION=$(echo ${PACKAGE_VERSION} | sed 's/^v//')
+
+
+color ${CYAN} "===================================================="
+color ${CYAN} "      Building DEB for Python Runtime $(uname -m)"
+color ${CYAN} "===================================================="
+echo
 
 # Build the debian package for the runtime
 
 WORK_DIR=$(mktemp -d)
 mkdir -p ${WORK_DIR}
 
+color ${MAGENTA} "* * * Creating DEBIAN files"
+(
 # Copy the control files/scripts to the staging area
 rsync -av deb-config/ ${WORK_DIR}/
+echo
 
 # Fill in the package info
 (
@@ -37,27 +90,39 @@ rsync -av deb-config/ ${WORK_DIR}/
     export PACKAGE_MAINTAINER
     cat deb-config/DEBIAN/control | envsubst | tee ${WORK_DIR}/DEBIAN/control
 )
+echo
+) 2>&1 | indent
 
 # Extract the runtime package to the staging area
+color ${MAGENTA} "* * * Adding runtime"
+(
 mkdir -p ${WORK_DIR}/${PRT_ROOT}
 tar -xzf "${OUTPUT_DIR}/${PACKAGE_NAME}" -C ${WORK_DIR}/${PRT_ROOT}
+echo
+) 2>&1 | indent
 
 # Build the package
+color ${MAGENTA} "* * * Creating package artifact"
+(
 dpkg-deb --build ${WORK_DIR} ${OUTPUT_DIR}
-# ls -l
-# echo
-# ls -l ${WORK_DIR}
-# mv ${WORK_DIR}/*.deb ${OUTPUT_DIR}
+echo
+) 2>&1 | indent
 
 
 
+color ${CYAN} "===================================================="
+color ${CYAN} "    Building DEB for Python Runtime (DEV) $(uname -m)"
+color ${CYAN} "===================================================="
+echo
 
-# Build the debian package for the DEV runtime
 WORK_DIR=$(mktemp -d)
-mkdir -p ${WORK_DIR}/${PRT_ROOT}
+mkdir -p ${WORK_DIR}
 
+color ${MAGENTA} "* * * Creating DEBIAN files"
+(
 # Copy the control files/scripts to the staging area
 rsync -av deb-config/ ${WORK_DIR}/
+echo
 
 # Fill in the package info
 (
@@ -68,10 +133,20 @@ rsync -av deb-config/ ${WORK_DIR}/
     export PACKAGE_MAINTAINER
     cat deb-config/DEBIAN/control | envsubst | tee ${WORK_DIR}/DEBIAN/control
 )
+echo
+) 2>&1 | indent
 
 # Extract the runtime package to the staging area
+color ${MAGENTA} "* * * Adding runtime"
+(
+mkdir -p ${WORK_DIR}/${PRT_ROOT}
 tar -xzf "${OUTPUT_DIR}/${PACKAGE_NAME_DEV}" -C ${WORK_DIR}/${PRT_ROOT}
+echo
+) 2>&1 | indent
 
 # Build the package
+color ${MAGENTA} "* * * Creating package artifact"
+(
 dpkg-deb --build ${WORK_DIR} ${OUTPUT_DIR}
-# mv ${WORK_DIR}/*.deb ${OUTPUT_DIR}
+echo
+) 2>&1 | indent

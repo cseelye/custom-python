@@ -1,4 +1,9 @@
 SHELL := /usr/bin/env bash -o pipefail
+
+# Include optional vars file. Use this file to override any of the variables below
+-include Makefile.vars
+
+# Default values for variables that were not in Makefile.vars
 PACKAGE_PREFIX ?= prt
 PACKAGE_DESC ?= Custom python runtime
 PACKAGE_MAINTAINER ?= John Doe
@@ -8,25 +13,32 @@ PACKAGE_VERSION := v0
 endif
 PYTHON_VERSION ?= 3.11.5
 PRT_ROOT ?= /prt
-BUILDER_IMAGE_NAME ?= prt-builder
-TEST_IMAGE_NAME ?= prt-tester
 ARTIFACT_DIR ?= out
-PACKAGE_NAME ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION).tgz
-PACKAGE_NAME_DEV ?= $(PACKAGE_PREFIX)-dev_$(PACKAGE_VERSION).tgz
 CACHE_URL ?= http://172.17.0.1:9000/prt/cache
-BUILDER_IMAGE_NAME_ARM ?= prt-builder-arm
-PACKAGE_NAME_ARM ?= $(PACKAGE_PREFIX)_$(PACKAGE_VERSION)_aarch64.tgz
-PACKAGE_NAME_DEV_ARM ?= $(PACKAGE_PREFIX)-dev_$(PACKAGE_VERSION)_aarch64.tgz
-TEST_IMAGE_NAME_ARM ?= prt-tester-arm
 
-PACKAGE_NAME_TEMPLATE ?= '$${PACKAGE_PREFIX}$${DEV_BUILD}_$${PACKAGE_VERSION}$${ARCH}'
+TEST_IMAGE_BASENAME ?= prt-tester
+BUILDER_IMAGE_BASENAME ?= prt-builder
+
+BUILDER_IMAGE_NAME := $(BUILDER_IMAGE_BASENAME)
+BUILDER_IMAGE_NAME_ARM := $(BUILDER_IMAGE_BASENAME)-arm
+TEST_IMAGE_NAME := $(TEST_IMAGE_BASENAME)
+TEST_DEB_IMAGE_NAME := $(TEST_IMAGE_BASENAME)-deb
+TEST_IMAGE_NAME_ARM := $(TEST_IMAGE_BASENAME)-arm
+TEST_DEB_IMAGE_NAME_ARM := $(TEST_IMAGE_BASENAME)-deb-arm
+
+PACKAGE_NAME_TEMPLATE ?= '$${PACKAGE_PREFIX}$${DEV_BUILD}_$${PACKAGE_VERSION}_$${ARCH}'
+DEB_NAME_TEMPLATE ?= $${PACKAGE_PREFIX}$${DEV_BUILD}_$${PACKAGE_VERSION}_$${ARCH}.deb
 PACKAGE_EXT ?= .tgz
 MANIFEST_EXT ?= .manifest.json
 
-PACKAGE_NAME := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
-PACKAGE_NAME_DEV := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=-dev; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
-PACKAGE_NAME_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=; export ARCH="_aarch64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
-PACKAGE_NAME_DEV_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export ARCH="_aarch64"; export DEV_BUILD=-dev; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
+PACKAGE_NAME := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=; export ARCH="x86_64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
+PACKAGE_NAME_DEV := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=-dev; export ARCH="x86_64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
+PACKAGE_NAME_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=; export ARCH="aarch64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
+PACKAGE_NAME_DEV_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=-dev; export ARCH="aarch64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
+DEB_NAME := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$$(echo $(PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=; export ARCH=amd64; echo '$(DEB_NAME_TEMPLATE)' | envsubst)
+DEB_NAME_DEV := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$$(echo $(PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=-dev; export ARCH=amd64; echo '$(DEB_NAME_TEMPLATE)' | envsubst)
+DEB_NAME_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$$(echo $(PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=; export ARCH=arm64; echo '$(DEB_NAME_TEMPLATE)' | envsubst)
+DEB_NAME_DEV_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$$(echo $(PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=-dev; export ARCH=arm64; echo '$(DEB_NAME_TEMPLATE)' | envsubst)
 
 # Print the values of the variables in a format that can be written to an env file - make env-file > .env
 .PHONY: env-file
@@ -35,6 +47,10 @@ env-file:
 	@echo "PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV)"
 	@echo "PACKAGE_NAME_ARM=$(PACKAGE_NAME_ARM)"
 	@echo "PACKAGE_NAME_DEV_ARM=$(PACKAGE_NAME_DEV_ARM)"
+	@echo "DEB_NAME=$(DEB_NAME)"
+	@echo "DEB_NAME_DEV=$(DEB_NAME_DEV)"
+	@echo "DEB_NAME_ARM=$(DEB_NAME_ARM)"
+	@echo "DEB_NAME_DEV_ARM=$(DEB_NAME_DEV_ARM)"
 	@echo "PYTHON_VERSION=$(PYTHON_VERSION)"
 	@echo "PACKAGE_PREFIX=$(PACKAGE_PREFIX)"
 	@echo "PACKAGE_EXT=$(PACKAGE_EXT)"
@@ -42,8 +58,12 @@ env-file:
 	@echo "CACHE_URL=$(CACHE_URL)"
 	@echo "BUILDER_IMAGE_NAME=$(BUILDER_IMAGE_NAME)"
 	@echo "TEST_IMAGE_NAME=$(TEST_IMAGE_NAME)"
+	@echo "TEST_DEB_IMAGE_NAME=$(TEST_DEB_IMAGE_NAME)"
 	@echo "BUILDER_IMAGE_NAME_ARM=$(BUILDER_IMAGE_NAME_ARM)"
 	@echo "TEST_IMAGE_NAME_ARM=$(TEST_IMAGE_NAME_ARM)"
+	@echo "TEST_DEB_IMAGE_NAME_ARM=$(TEST_DEB_IMAGE_NAME_ARM)"
+	@echo "PACKAGE_DESC='$(PACKAGE_DESC)'"
+	@echo "PACKAGE_MAINTAINER='$(PACKAGE_MAINTAINER)'"
 
 # Print the values of the variables in a format that can be eval to use them - eval $(make env)
 .PHONY: env
@@ -72,6 +92,10 @@ FULL_PACKAGE_NAME := $(OUTPUT_DIR)/$(PACKAGE_NAME)
 FULL_PACKAGE_NAME_ARM := $(OUTPUT_DIR)/$(PACKAGE_NAME_ARM)
 FULL_PACKAGE_NAME_DEV := $(OUTPUT_DIR)/$(PACKAGE_NAME_DEV)
 FULL_PACKAGE_NAME_DEV_ARM := $(OUTPUT_DIR)/$(PACKAGE_NAME_DEV_ARM)
+FULL_DEB_NAME := $(OUTPUT_DIR)/$(DEB_NAME)
+FULL_DEB_NAME_ARM := $(OUTPUT_DIR)/$(DEB_NAME_ARM)
+FULL_DEB_NAME_DEV := $(OUTPUT_DIR)/$(DEB_NAME_DEV)
+FULL_DEB_NAME_DEV_ARM := $(OUTPUT_DIR)/$(DEB_NAME_DEV_ARM)
 
 # Determine if make is runing interactively or in a script
 INTERACTIVE := $(shell if tty -s; then echo "-it"; else echo ""; fi)
@@ -150,18 +174,39 @@ test-dev: $(FULL_PACKAGE_NAME_DEV)
 test-arm-dev: $(FULL_PACKAGE_NAME_DEV_ARM)
 	docker image build --platform=arm64 --progress=plain --no-cache -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
 	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME) ./test-runtime
-test-all: test test-dev test-arm test-arm-dev ;
+test-deb: deb
+	docker image build --platform=amd64 --progress=plain --no-cache -t $(TEST_DEB_IMAGE_NAME) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(ARTIFACT_DIR)/$(DEB_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_DEB_IMAGE_NAME) ./test-runtime
+test-deb-arm: deb-arm
+	docker image build --platform=arm64 --progress=plain --no-cache -t $(TEST_DEB_IMAGE_NAME_ARM) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(ARTIFACT_DIR)/$(DEB_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_DEB_IMAGE_NAME_ARM) ./test-runtime
+test-deb-dev: deb-dev
+	docker image build --platform=amd64 --progress=plain --no-cache -t $(TEST_DEB_IMAGE_NAME) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(ARTIFACT_DIR)/$(DEB_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_DEB_IMAGE_NAME) ./test-runtime
+test-deb-arm-dev: deb-dev-arm
+	docker image build --platform=arm64 --progress=plain --no-cache -t $(TEST_DEB_IMAGE_NAME_ARM) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(ARTIFACT_DIR)/$(DEB_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_DEB_IMAGE_NAME_ARM) ./test-runtime
+
+test-all: test test-dev test-arm test-arm-dev test-deb test-deb-arm test-deb-dev test-deb-arm-dev;
 
 # Get an interactive prompt to a fresh container with the runtime installed
 run: $(FULL_PACKAGE_NAME)
-	docker image build $(LOCAL_PLATFORM) -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run $(LOCAL_PLATFORM) --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
+	docker image build --platform=amd64 -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
+run-arm: $(FULL_PACKAGE_NAME_ARM)
+	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=arm64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME_ARM) /bin/bash
 run-dev: $(FULL_PACKAGE_NAME_DEV)
-	docker image build $(LOCAL_PLATFORM) -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run $(LOCAL_PLATFORM) --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
+	docker image build --platform=amd64 -t $(TEST_IMAGE_NAME) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME) /bin/bash
+run-dev-arm: $(FULL_PACKAGE_NAME_DEV_ARM)
+	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=arm64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME_ARM) /bin/bash
 
 # Build the debian package
-deb: $(FULL_PACKAGE_NAME) .builder-image $(DEB_DEPS) | $(OUTPUT_DIR)
+deb: $(FULL_DEB_NAME)
+deb-dev: $(FULL_DEB_NAME_DEV)
+$(FULL_DEB_NAME) $(FULL_DEB_NAME_DEV): $(FULL_PACKAGE_NAME) .builder-image $(DEB_DEPS) | $(OUTPUT_DIR)
 	docker container run --platform=amd64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
 		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 		-v $(shell pwd):/work -w /work \
@@ -174,6 +219,22 @@ deb: $(FULL_PACKAGE_NAME) .builder-image $(DEB_DEPS) | $(OUTPUT_DIR)
 		-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV) \
 		-e PRT_ROOT=$(PRT_ROOT) \
 		$(BUILDER_IMAGE_NAME) \
+		./build-deb
+deb-arm: $(FULL_DEB_NAME_ARM)
+deb-dev-arm: $(FULL_DEB_NAME_DEV_ARM)
+$(FULL_DEB_NAME_ARM) $(FULL_DEB_NAME_DEV_ARM): $(FULL_PACKAGE_NAME_ARM) .builder-image $(DEB_DEPS) | $(OUTPUT_DIR)
+	docker container run --platform=arm64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
+		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
+		-v $(shell pwd):/work -w /work \
+		-e PACKAGE="$(PACKAGE_PREFIX)" \
+		-e PACKAGE_ARCH=arm64 \
+		-e PACKAGE_VERSION=$(PACKAGE_VERSION) \
+		-e PACKAGE_DESC="$(PACKAGE_DESC)" \
+		-e PACKAGE_MAINTAINER="$(PACKAGE_MAINTAINER)" \
+		-e PACKAGE_NAME=$(PACKAGE_NAME_ARM) \
+		-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_ARM) \
+		-e PRT_ROOT=$(PRT_ROOT) \
+		$(BUILDER_IMAGE_NAME_ARM) \
 		./build-deb
 
 # Clean: remove output files
@@ -236,24 +297,35 @@ help:
 	@ \
 	{ \
 	echo ""; \
+	echo "Each target has an AMD64 and ARM64 variant"; \
+	echo ""; \
 	echo -e "$(GREEN_BOLD)Build the runtime:$(COLOR_RESET)"; \
 	echo -e "  make runtime                          Build the runtime and package it as a tarball in the output directory"; \
-	echo -e "  make deb                    	         Build the runtime and package it as a deb in the output directory"; \
+	echo -e "  make runtime-arm"; \
+	echo -e "  make deb                              Build the runtime and package it as a deb in the output directory"; \
+	echo -e "  make deb-arm"; \
 	echo -e "  make builder-image                    Build the docker image used to build the runtime"; \
-	echo -e "  make runtime-arm                      Build the runtime (arm64) and package it as a tarball in the output directory"; \
-	echo -e "  make deb-arm                          Build the runtime (arm64) and package it as a deb in the output directory"; \
-	echo -e "  make builder-image-arm                Build the docker image (arm64) used to build the runtime"; \
+	echo -e "  make builder-image-arm"; \
+	echo ""; \
 	echo -e "$(MAGENTA)NO_PACKAGE_CACHE=1$(COLOR_RESET) can be used to build without using cached pip packages"; \
 	echo -e "$(MAGENTA)NO_CACHE=1$(COLOR_RESET) can be used to build without using any cached python/pip packages"; \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Testing:$(COLOR_RESET)"; \
-	echo -e "  make test                             Install the package in a fresh container and test it"; \
-	echo -e "  make test-dev                         Install the dev package in a fresh container and test it"; \
-	echo -e "  make test-arm                         Install the ARM64 package in a fresh container and test it"; \
-	echo -e "  make test-arm-dev                     Install the ARM64 dev package in a fresh container and test it"; \
-	echo -e "  make test-all                     	 Run the tests for all the variations"; \
+	echo -e "  make test                             Install the tar package in a fresh container and test it"; \
+	echo -e "  make test-arm"; \
+	echo -e "  make test-dev                         Install the dev tar package in a fresh container and test it"; \
+	echo -e "  make test-dev-arm"; \
+	echo -e "  make test-deb                         Install the debian package in a fresh container and test it"; \
+	echo -e "  make test-deb-arm"; \
+	echo -e "  make test-deb-dev                     Install the dev debian package in a fresh container and test it"; \
+	echo -e "  make test-deb-dev-arm"; \
+	echo ""; \
+	echo -e "  make test-all                         Run the tests for all the variations"; \
+	echo ""; \
 	echo -e "  make run                              Install the package in a fresh container and get an interactive prompt"; \
+	echo -e "  make run-arm"; \
 	echo -e "  make run-dev                          Install the dev package in a fresh container and get an interactive prompt"; \
+	echo -e "  make run-dev-arm"; \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Cleanup:$(COLOR_RESET)"; \
 	echo -e "  make clean                            Delete the runtime package"; \

@@ -4,6 +4,9 @@ Custom Python Runtime
 All notable changes to the runtime will be documented in this file. Versioning follows the format vX, where X is the version number.
 
 ## [Unreleased]
+### Added
+* Add debian packaging
+* Add optional Makefile.vars to override settings
 
 ## [v13] - 2023-11-15
 ### Changed
