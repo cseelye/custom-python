@@ -1,5 +1,5 @@
 # Changelog
-Custom Python Runtime
+Python Runtime Builder
 
 All notable changes to the runtime will be documented in this file. Versioning follows the format vX, where X is the version number.
 
@@ -8,7 +8,8 @@ All notable changes to the runtime will be documented in this file. Versioning f
 * Add debian packaging
 * Add optional Makefile.vars to override settings
 ### Changed
-* use dpkg style architecture names everywhere
+* Use local CPU architecture as the default
+* Use dpkg style architecture names everywhere
 
 ## [v13] - 2023-11-15
 ### Changed
