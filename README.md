@@ -6,7 +6,7 @@ As an example, this repo is setup to build a python runtime for REST services us
 ## Features
 
 ### Versioning
-By default the makefile will look for git tags (`v*`) and pick the latest one to use as the version. This can be overridden with the `PACKAGE_VERSION` variable.
+By default the makefile will look for git tags (`v*`) and pick the latest one to use as the version. This can be overridden with the `PRT_PACKAGE_VERSION` variable.
 
 ### Manifest
 A JSON manifest is created each time the runtime is built, containing the python version, list of python packages/versions, and the overall package version.
@@ -28,8 +28,8 @@ The easiest way to start is to create a `Makefile.vars` file to override the con
 | `PYTHON_VERSION` | The version of python to use for the runtime. <br />Default: `3.11.5` |
 | `ARTIFACT_DIR` | The directory to put the packages and other artifacts when they are built. <br />Default: `out` |
 | `PACKAGE_PREFIX` | Prefix to use for package names (tar and deb). <br />Default: `prt` |
-| `PACKAGE_DESC` | Description of the package, used for DEB packages. |
-| `PACKAGE_MAINTAINER` | Name of the maintainer, used for DEB packages. |
+| `PRT_PACKAGE_DESC` | Description of the package, used for DEB packages. |
+| `PRT_PACKAGE_MAINTAINER` | Name of the maintainer, used for DEB packages. |
 
 
 ## Usage

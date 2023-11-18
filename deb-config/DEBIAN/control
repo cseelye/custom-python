@@ -1,6 +1,6 @@
-Package: ${PACKAGE}
-Version: ${PACKAGE_VERSION}
-Maintainer: ${PACKAGE_MAINTAINER}
-Architecture: ${PACKAGE_ARCH}
-Description: ${PACKAGE_DESC}
+Package: ${PRT_PACKAGE}
+Version: ${PRT_PACKAGE_VERSION}
+Maintainer: ${PRT_PACKAGE_MAINTAINER}
+Architecture: ${PRT_PACKAGE_ARCH}
+Description: ${PRT_PACKAGE_DESC}
 Depends: ca-certificates, openssl, libsqlite3-0

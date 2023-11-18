@@ -4,66 +4,66 @@ SHELL := /usr/bin/env bash -o pipefail
 -include Makefile.vars
 
 # Default values for variables that were not in Makefile.vars
-PACKAGE_PREFIX ?= prt
-PACKAGE_DESC ?= Custom python runtime
-PACKAGE_MAINTAINER ?= John Doe
-PACKAGE_VERSION ?= $(shell git tag --list 'v*' | sort -V | tail -n1 || echo v0)
-ifeq ($(PACKAGE_VERSION),)
-PACKAGE_VERSION := v0
+PRT_PACKAGE_PREFIX ?= prt
+PRT_PACKAGE_DESC ?= Custom python runtime
+PRT_PACKAGE_MAINTAINER ?= John Doe
+PRT_PACKAGE_VERSION ?= $(shell git tag --list 'v*' | sort -V | tail -n1 || echo v0)
+ifeq ($(PRT_PACKAGE_VERSION),)
+PRT_PACKAGE_VERSION := v0
 endif
-PYTHON_VERSION ?= 3.11.5
+PRT_PYTHON_VERSION ?= 3.11.5
 PRT_ROOT ?= /prt
-ARTIFACT_DIR ?= out
-CACHE_URL ?= http://172.17.0.1:9000/prt/cache
+PRT_ARTIFACT_DIR ?= out
+PRT_CACHE_URL ?= http://172.17.0.1:9000/prt/cache
 
-TEST_IMAGE_BASENAME ?= prt-tester
-BUILDER_IMAGE_BASENAME ?= prt-builder
+PRT_TEST_IMAGE_BASENAME ?= prt-tester
+PRT_BUILDER_IMAGE_BASENAME ?= prt-builder
 
-BUILDER_IMAGE_NAME_X86 := $(BUILDER_IMAGE_BASENAME)
-BUILDER_IMAGE_NAME_ARM := $(BUILDER_IMAGE_BASENAME)-arm
-TEST_IMAGE_NAME_X86 := $(TEST_IMAGE_BASENAME)
-TEST_DEB_IMAGE_NAME_X86 := $(TEST_IMAGE_BASENAME)-deb
-TEST_IMAGE_NAME_ARM := $(TEST_IMAGE_BASENAME)-arm
-TEST_DEB_IMAGE_NAME_ARM := $(TEST_IMAGE_BASENAME)-deb-arm
+PRT_BUILDER_IMAGE_NAME_X86 := $(PRT_BUILDER_IMAGE_BASENAME)
+PRT_BUILDER_IMAGE_NAME_ARM := $(PRT_BUILDER_IMAGE_BASENAME)-arm
+PRT_TEST_IMAGE_NAME_X86 := $(PRT_TEST_IMAGE_BASENAME)
+PRT_TEST_IMAGE_NAME_ARM := $(PRT_TEST_IMAGE_BASENAME)-arm
+PRT_TEST_DEB_IMAGE_NAME_X86 := $(PRT_TEST_IMAGE_BASENAME)-deb
+PRT_TEST_DEB_IMAGE_NAME_ARM := $(PRT_TEST_IMAGE_BASENAME)-deb-arm
 
-PACKAGE_NAME_TEMPLATE ?= '$${PACKAGE_PREFIX}$${DEV_BUILD}_$${PACKAGE_VERSION}_$${ARCH}'
-DEB_NAME_TEMPLATE ?= $${PACKAGE_PREFIX}$${DEV_BUILD}_$${PACKAGE_VERSION}_$${ARCH}.deb
-PACKAGE_EXT ?= .tgz
-MANIFEST_EXT ?= .manifest.json
+PRT_PACKAGE_NAME_TEMPLATE ?= '$${PRT_PACKAGE_PREFIX}$${DEV_BUILD}_$${PRT_PACKAGE_VERSION}_$${ARCH}'
+PRT_DEB_NAME_TEMPLATE ?= $${PRT_PACKAGE_PREFIX}$${DEV_BUILD}_$${PRT_PACKAGE_VERSION}_$${ARCH}.deb
+PRT_PACKAGE_EXT ?= .tgz
+PRT_MANIFEST_EXT ?= .manifest.json
 
-PACKAGE_NAME_X86 := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=; export ARCH="amd64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
-PACKAGE_NAME_DEV_X86 := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=-dev; export ARCH="amd64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
-PACKAGE_NAME_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=; export ARCH="arm64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
-PACKAGE_NAME_DEV_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$(PACKAGE_VERSION); export DEV_BUILD=-dev; export ARCH="arm64"; echo '$(PACKAGE_NAME_TEMPLATE)' | envsubst )$(PACKAGE_EXT)
-DEB_NAME_X86 := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$$(echo $(PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=; export ARCH=amd64; echo '$(DEB_NAME_TEMPLATE)' | envsubst)
-DEB_NAME_DEV_X86 := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$$(echo $(PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=-dev; export ARCH=amd64; echo '$(DEB_NAME_TEMPLATE)' | envsubst)
-DEB_NAME_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$$(echo $(PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=; export ARCH=arm64; echo '$(DEB_NAME_TEMPLATE)' | envsubst)
-DEB_NAME_DEV_ARM := $(shell export PACKAGE_PREFIX=$(PACKAGE_PREFIX); export PACKAGE_VERSION=$$(echo $(PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=-dev; export ARCH=arm64; echo '$(DEB_NAME_TEMPLATE)' | envsubst)
+PRT_PACKAGE_NAME_X86 := $(shell export PRT_PACKAGE_PREFIX=$(PRT_PACKAGE_PREFIX); export PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION); export DEV_BUILD=; export ARCH="amd64"; echo '$(PRT_PACKAGE_NAME_TEMPLATE)' | envsubst )$(PRT_PACKAGE_EXT)
+PRT_PACKAGE_NAME_DEV_X86 := $(shell export PRT_PACKAGE_PREFIX=$(PRT_PACKAGE_PREFIX); export PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION); export DEV_BUILD=-dev; export ARCH="amd64"; echo '$(PRT_PACKAGE_NAME_TEMPLATE)' | envsubst )$(PRT_PACKAGE_EXT)
+PRT_PACKAGE_NAME_ARM := $(shell export PRT_PACKAGE_PREFIX=$(PRT_PACKAGE_PREFIX); export PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION); export DEV_BUILD=; export ARCH="arm64"; echo '$(PRT_PACKAGE_NAME_TEMPLATE)' | envsubst )$(PRT_PACKAGE_EXT)
+PRT_PACKAGE_NAME_DEV_ARM := $(shell export PRT_PACKAGE_PREFIX=$(PRT_PACKAGE_PREFIX); export PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION); export DEV_BUILD=-dev; export ARCH="arm64"; echo '$(PRT_PACKAGE_NAME_TEMPLATE)' | envsubst )$(PRT_PACKAGE_EXT)
+PRT_DEB_NAME_X86 := $(shell export PRT_PACKAGE_PREFIX=$(PRT_PACKAGE_PREFIX); export PRT_PACKAGE_VERSION=$$(echo $(PRT_PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=; export ARCH=amd64; echo '$(PRT_DEB_NAME_TEMPLATE)' | envsubst)
+PRT_DEB_NAME_DEV_X86 := $(shell export PRT_PACKAGE_PREFIX=$(PRT_PACKAGE_PREFIX); export PRT_PACKAGE_VERSION=$$(echo $(PRT_PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=-dev; export ARCH=amd64; echo '$(PRT_DEB_NAME_TEMPLATE)' | envsubst)
+PRT_DEB_NAME_ARM := $(shell export PRT_PACKAGE_PREFIX=$(PRT_PACKAGE_PREFIX); export PRT_PACKAGE_VERSION=$$(echo $(PRT_PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=; export ARCH=arm64; echo '$(PRT_DEB_NAME_TEMPLATE)' | envsubst)
+PRT_DEB_NAME_DEV_ARM := $(shell export PRT_PACKAGE_PREFIX=$(PRT_PACKAGE_PREFIX); export PRT_PACKAGE_VERSION=$$(echo $(PRT_PACKAGE_VERSION) | sed 's/^v//'); export DEV_BUILD=-dev; export ARCH=arm64; echo '$(PRT_DEB_NAME_TEMPLATE)' | envsubst)
 
 # Print the values of the variables in a format that can be written to an env file - make env-file > .env
 .PHONY: env-file
 env-file:
-	@echo "PACKAGE_NAME_X86=$(PACKAGE_NAME_X86)"
-	@echo "PACKAGE_NAME_DEV_X86=$(PACKAGE_NAME_DEV_X86)"
-	@echo "PACKAGE_NAME_ARM=$(PACKAGE_NAME_ARM)"
-	@echo "PACKAGE_NAME_DEV_ARM=$(PACKAGE_NAME_DEV_ARM)"
-	@echo "DEB_NAME_X86=$(DEB_NAME_X86)"
-	@echo "DEB_NAME_DEV_X86=$(DEB_NAME_DEV_X86)"
-	@echo "DEB_NAME_ARM=$(DEB_NAME_ARM)"
-	@echo "DEB_NAME_DEV_ARM=$(DEB_NAME_DEV_ARM)"
-	@echo "PYTHON_VERSION=$(PYTHON_VERSION)"
-	@echo "PACKAGE_PREFIX=$(PACKAGE_PREFIX)"
-	@echo "PACKAGE_EXT=$(PACKAGE_EXT)"
-	@echo "MANIFEST_EXT=$(MANIFEST_EXT)"
-	@echo "CACHE_URL=$(CACHE_URL)"
-	@echo "BUILDER_IMAGE_NAME_X86=$(BUILDER_IMAGE_NAME_X86)"
-	@echo "TEST_IMAGE_NAME_X86=$(TEST_IMAGE_NAME_X86)"
-	@echo "TEST_DEB_IMAGE_NAME_X86=$(TEST_DEB_IMAGE_NAME_X86)"
-	@echo "BUILDER_IMAGE_NAME_ARM=$(BUILDER_IMAGE_NAME_ARM)"
-	@echo "TEST_IMAGE_NAME_ARM=$(TEST_IMAGE_NAME_ARM)"
-	@echo "TEST_DEB_IMAGE_NAME_ARM=$(TEST_DEB_IMAGE_NAME_ARM)"
-	@echo "PACKAGE_DESC='$(PACKAGE_DESC)'"
-	@echo "PACKAGE_MAINTAINER='$(PACKAGE_MAINTAINER)'"
+	@echo "PRT_PACKAGE_NAME_X86=$(PRT_PACKAGE_NAME_X86)"
+	@echo "PRT_PACKAGE_NAME_DEV_X86=$(PRT_PACKAGE_NAME_DEV_X86)"
+	@echo "PRT_PACKAGE_NAME_ARM=$(PRT_PACKAGE_NAME_ARM)"
+	@echo "PRT_PACKAGE_NAME_DEV_ARM=$(PRT_PACKAGE_NAME_DEV_ARM)"
+	@echo "PRT_DEB_NAME_X86=$(PRT_DEB_NAME_X86)"
+	@echo "PRT_DEB_NAME_DEV_X86=$(PRT_DEB_NAME_DEV_X86)"
+	@echo "PRT_DEB_NAME_ARM=$(PRT_DEB_NAME_ARM)"
+	@echo "PRT_DEB_NAME_DEV_ARM=$(PRT_DEB_NAME_DEV_ARM)"
+	@echo "PRT_PYTHON_VERSION=$(PRT_PYTHON_VERSION)"
+	@echo "PRT_PACKAGE_PREFIX=$(PRT_PACKAGE_PREFIX)"
+	@echo "PRT_PACKAGE_EXT=$(PRT_PACKAGE_EXT)"
+	@echo "PRT_MANIFEST_EXT=$(PRT_MANIFEST_EXT)"
+	@echo "PRT_CACHE_URL=$(PRT_CACHE_URL)"
+	@echo "PRT_BUILDER_IMAGE_NAME_X86=$(PRT_BUILDER_IMAGE_NAME_X86)"
+	@echo "PRT_TEST_IMAGE_NAME_X86=$(PRT_TEST_IMAGE_NAME_X86)"
+	@echo "PRT_TEST_DEB_IMAGE_NAME_X86=$(PRT_TEST_DEB_IMAGE_NAME_X86)"
+	@echo "PRT_BUILDER_IMAGE_NAME_ARM=$(PRT_BUILDER_IMAGE_NAME_ARM)"
+	@echo "PRT_TEST_IMAGE_NAME_ARM=$(PRT_TEST_IMAGE_NAME_ARM)"
+	@echo "PRT_TEST_DEB_IMAGE_NAME_ARM=$(PRT_TEST_DEB_IMAGE_NAME_ARM)"
+	@echo "PRT_PACKAGE_DESC='$(PRT_PACKAGE_DESC)'"
+	@echo "PRT_PACKAGE_MAINTAINER='$(PRT_PACKAGE_MAINTAINER)'"
 
 # Print the values of the variables in a format that can be eval to use them - eval $(make env)
 .PHONY: env
@@ -86,16 +86,16 @@ ifeq ($(USE_CACHE),0)
   CACHE_ARG = -e USE_CACHE=0 -e USE_PIP_CACHE=0
 endif
 
-# Make OUTPUT_DIR an absolute path from ARTIFACT_DIR
-OUTPUT_DIR := $(shell realpath $(ARTIFACT_DIR))
-FULL_PACKAGE_NAME_X86 := $(OUTPUT_DIR)/$(PACKAGE_NAME_X86)
-FULL_PACKAGE_NAME_ARM := $(OUTPUT_DIR)/$(PACKAGE_NAME_ARM)
-FULL_PACKAGE_NAME_DEV_X86 := $(OUTPUT_DIR)/$(PACKAGE_NAME_DEV_X86)
-FULL_PACKAGE_NAME_DEV_ARM := $(OUTPUT_DIR)/$(PACKAGE_NAME_DEV_ARM)
-FULL_DEB_NAME_X86 := $(OUTPUT_DIR)/$(DEB_NAME_X86)
-FULL_DEB_NAME_ARM := $(OUTPUT_DIR)/$(DEB_NAME_ARM)
-FULL_DEB_NAME_DEV_X86 := $(OUTPUT_DIR)/$(DEB_NAME_DEV_X86)
-FULL_DEB_NAME_DEV_ARM := $(OUTPUT_DIR)/$(DEB_NAME_DEV_ARM)
+# Make OUTPUT_DIR an absolute path from PRT_ARTIFACT_DIR
+OUTPUT_DIR := $(shell realpath $(PRT_ARTIFACT_DIR))
+FULL_PACKAGE_NAME_X86 := $(OUTPUT_DIR)/$(PRT_PACKAGE_NAME_X86)
+FULL_PACKAGE_NAME_ARM := $(OUTPUT_DIR)/$(PRT_PACKAGE_NAME_ARM)
+FULL_PACKAGE_NAME_DEV_X86 := $(OUTPUT_DIR)/$(PRT_PACKAGE_NAME_DEV_X86)
+FULL_PACKAGE_NAME_DEV_ARM := $(OUTPUT_DIR)/$(PRT_PACKAGE_NAME_DEV_ARM)
+FULL_DEB_NAME_X86 := $(OUTPUT_DIR)/$(PRT_DEB_NAME_X86)
+FULL_DEB_NAME_ARM := $(OUTPUT_DIR)/$(PRT_DEB_NAME_ARM)
+FULL_DEB_NAME_DEV_X86 := $(OUTPUT_DIR)/$(PRT_DEB_NAME_DEV_X86)
+FULL_DEB_NAME_DEV_ARM := $(OUTPUT_DIR)/$(PRT_DEB_NAME_DEV_ARM)
 
 # Determine if make is runing interactively or in a script
 INTERACTIVE := $(shell if tty -s; then echo "-it"; else echo ""; fi)
@@ -123,13 +123,13 @@ DEB_DEPS = build-deb $(shell find ./deb-config -type f -print 2>/dev/null || tru
 # Build the builder container image
 builder-image-x86: .builder-image-x86
 .builder-image-x86: $(BUILDER_DEPS)
-	docker image build --platform=amd64 --no-cache --progress=plain -t $(BUILDER_IMAGE_NAME_X86) . && \
-	id=$$(docker image inspect -f '{{.Id}}' $(BUILDER_IMAGE_NAME_X86)) && echo "$${id}" > .builder-image-x86
+	docker image build --platform=amd64 --no-cache --progress=plain -t $(PRT_BUILDER_IMAGE_NAME_X86) . && \
+	id=$$(docker image inspect -f '{{.Id}}' $(PRT_BUILDER_IMAGE_NAME_X86)) && echo "$${id}" > .builder-image-x86
 
 builder-image-arm: .builder-image-arm
 .builder-image-arm: $(BUILDER_DEPS)
-	docker image build --platform=arm64 --progress=plain -t $(BUILDER_IMAGE_NAME_ARM) . && \
-	id=$$(docker image inspect -f '{{.Id}}' $(BUILDER_IMAGE_NAME_ARM)) && echo "$${id}" > .builder-image-arm
+	docker image build --platform=arm64 --progress=plain -t $(PRT_BUILDER_IMAGE_NAME_ARM) . && \
+	id=$$(docker image inspect -f '{{.Id}}' $(PRT_BUILDER_IMAGE_NAME_ARM)) && echo "$${id}" > .builder-image-arm
 
 $(OUTPUT_DIR):
 	mkdir -p $(OUTPUT_DIR)
@@ -145,12 +145,12 @@ $(FULL_PACKAGE_NAME_X86) $(FULL_PACKAGE_NAME_DEV_X86): .builder-image-x86 $(RUNT
 	docker container run --platform=amd64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
 		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 		-v $(shell pwd):/work -w /work \
-		-e CACHE_URL="${CACHE_URL}" \
-		-e RUNTIME_VER=$(PACKAGE_VERSION) \
-		-e PACKAGE_NAME=$(PACKAGE_NAME_X86) \
-		-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_X86) \
-		-e PYTHON_VERSION=$(PYTHON_VERSION) \
-		$(BUILDER_IMAGE_NAME_X86) \
+		-e PRT_CACHE_URL="${PRT_CACHE_URL}" \
+		-e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) \
+		-e PRT_PACKAGE_NAME=$(PRT_PACKAGE_NAME_X86) \
+		-e PRT_PACKAGE_NAME_DEV=$(PRT_PACKAGE_NAME_DEV_X86) \
+		-e PRT_PYTHON_VERSION=$(PRT_PYTHON_VERSION) \
+		$(PRT_BUILDER_IMAGE_NAME_X86) \
 		./build-runtime
 runtime-arm: $(FULL_PACKAGE_NAME_ARM)
 runtime-dev-arm: $(FULL_PACKAGE_NAME_DEV_ARM)
@@ -158,13 +158,13 @@ $(FULL_PACKAGE_NAME_ARM) $(FULL_PACKAGE_NAME_DEV_ARM): .builder-image-arm $(RUNT
 	docker container run --platform=arm64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
 		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 		-v $(shell pwd):/work -w /work \
-		-e CACHE_URL="${CACHE_URL}" \
-		-e RUNTIME_VER=$(PACKAGE_VERSION) \
-		-e PACKAGE_NAME=$(PACKAGE_NAME_ARM) \
-		-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_ARM) \
-		-e PYTHON_VERSION=$(PYTHON_VERSION) \
+		-e PRT_CACHE_URL="${PRT_CACHE_URL}" \
+		-e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) \
+		-e PRT_PACKAGE_NAME=$(PRT_PACKAGE_NAME_ARM) \
+		-e PRT_PACKAGE_NAME_DEV=$(PRT_PACKAGE_NAME_DEV_ARM) \
+		-e PRT_PYTHON_VERSION=$(PRT_PYTHON_VERSION) \
 		-e MTUNE= \
-		$(BUILDER_IMAGE_NAME_ARM) \
+		$(PRT_BUILDER_IMAGE_NAME_ARM) \
 		./build-runtime
 
 
@@ -175,29 +175,29 @@ test-deb: test-deb-$(LOCAL_ARCH)
 test-deb-dev: test-deb-dev-$(LOCAL_ARCH)
 
 test-x86: $(FULL_PACKAGE_NAME_X86)
-	docker image build --platform=amd64 --progress=plain --no-cache -t $(TEST_IMAGE_NAME_X86) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME_X86) ./test-runtime
+	docker image build --platform=amd64 --progress=plain --no-cache -t $(PRT_TEST_IMAGE_NAME_X86) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_PACKAGE_NAME_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) -e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) $(PRT_TEST_IMAGE_NAME_X86) ./test-runtime
 test-arm: $(FULL_PACKAGE_NAME_ARM)
-	docker image build --platform=arm64 --progress=plain --no-cache -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME_ARM) ./test-runtime
+	docker image build --platform=arm64 --progress=plain --no-cache -t $(PRT_TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) -e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) $(PRT_TEST_IMAGE_NAME_ARM) ./test-runtime
 test-dev-x86: $(FULL_PACKAGE_NAME_DEV_X86)
-	docker image build --platform=amd64 --progress=plain --no-cache -t $(TEST_IMAGE_NAME_X86) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME_X86) ./test-runtime
+	docker image build --platform=amd64 --progress=plain --no-cache -t $(PRT_TEST_IMAGE_NAME_X86) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_PACKAGE_NAME_DEV_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) $(PRT_TEST_IMAGE_NAME_X86) ./test-runtime
 test-dev-arm: $(FULL_PACKAGE_NAME_DEV_ARM)
-	docker image build --platform=arm64 --progress=plain --no-cache -t $(TEST_IMAGE_NAME_X86) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_IMAGE_NAME_X86) ./test-runtime
+	docker image build --platform=arm64 --progress=plain --no-cache -t $(PRT_TEST_IMAGE_NAME_X86) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) $(PRT_TEST_IMAGE_NAME_X86) ./test-runtime
 test-deb-x86: deb-x86
-	docker image build --platform=amd64 --progress=plain --no-cache -t $(TEST_DEB_IMAGE_NAME_X86) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(ARTIFACT_DIR)/$(DEB_NAME_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_DEB_IMAGE_NAME_X86) ./test-runtime
+	docker image build --platform=amd64 --progress=plain --no-cache -t $(PRT_TEST_DEB_IMAGE_NAME_X86) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_DEB_NAME_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) $(PRT_TEST_DEB_IMAGE_NAME_X86) ./test-runtime
 test-deb-arm: deb-arm
-	docker image build --platform=arm64 --progress=plain --no-cache -t $(TEST_DEB_IMAGE_NAME_ARM) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(ARTIFACT_DIR)/$(DEB_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_DEB_IMAGE_NAME_ARM) ./test-runtime
+	docker image build --platform=arm64 --progress=plain --no-cache -t $(PRT_TEST_DEB_IMAGE_NAME_ARM) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_DEB_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) $(PRT_TEST_DEB_IMAGE_NAME_ARM) ./test-runtime
 test-deb-dev-x86: deb-dev-x86
-	docker image build --platform=amd64 --progress=plain --no-cache -t $(TEST_DEB_IMAGE_NAME_X86) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(ARTIFACT_DIR)/$(DEB_NAME_DEV_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_DEB_IMAGE_NAME_X86) ./test-runtime
+	docker image build --platform=amd64 --progress=plain --no-cache -t $(PRT_TEST_DEB_IMAGE_NAME_X86) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_DEB_NAME_DEV_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) $(PRT_TEST_DEB_IMAGE_NAME_X86) ./test-runtime
 test-deb-dev-arm: deb-dev-arm
-	docker image build --platform=arm64 --progress=plain --no-cache -t $(TEST_DEB_IMAGE_NAME_ARM) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(ARTIFACT_DIR)/$(DEB_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e RUNTIME_VER=$(PACKAGE_VERSION) $(TEST_DEB_IMAGE_NAME_ARM) ./test-runtime
+	docker image build --platform=arm64 --progress=plain --no-cache -t $(PRT_TEST_DEB_IMAGE_NAME_ARM) -f Dockerfile.test_deb --build-arg DEB_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_DEB_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=arm64 --rm $(INTERACTIVE) -v $(shell pwd):/work -w /work -e DEB_INSTALL=1 -e DEV_INSTALL=1 -e PRT_ROOT=$(PRT_ROOT) -e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) $(PRT_TEST_DEB_IMAGE_NAME_ARM) ./test-runtime
 
 test-all: test-x86 test-dev-x86 test-arm test-dev-arm test-deb-x86 test-deb-arm test-deb-dev-x86 test-deb-dev-arm;
 
@@ -207,17 +207,17 @@ run: run-$(LOCAL_ARCH)
 run-dev: run-dev-$(LOCAL_ARCH)
 
 run-x86: $(FULL_PACKAGE_NAME_X86)
-	docker image build --platform=amd64 -t $(TEST_IMAGE_NAME_X86) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=amd64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME_X86) /bin/bash
+	docker image build --platform=amd64 -t $(PRT_TEST_IMAGE_NAME_X86) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_PACKAGE_NAME_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(PRT_TEST_IMAGE_NAME_X86) /bin/bash
 run-arm: $(FULL_PACKAGE_NAME_ARM)
-	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=arm64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME_ARM) /bin/bash
+	docker image build --platform=arm64 -t $(PRT_TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_PACKAGE_NAME_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=arm64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(PRT_TEST_IMAGE_NAME_ARM) /bin/bash
 run-dev-x86: $(FULL_PACKAGE_NAME_DEV_X86)
-	docker image build --platform=amd64 -t $(TEST_IMAGE_NAME_X86) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=amd64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME_X86) /bin/bash
+	docker image build --platform=amd64 -t $(PRT_TEST_IMAGE_NAME_X86) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_PACKAGE_NAME_DEV_X86) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=amd64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(PRT_TEST_IMAGE_NAME_X86) /bin/bash
 run-dev-arm: $(FULL_PACKAGE_NAME_DEV_ARM)
-	docker image build --platform=arm64 -t $(TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(ARTIFACT_DIR)/$(PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
-	docker container run --platform=arm64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(TEST_IMAGE_NAME_ARM) /bin/bash
+	docker image build --platform=arm64 -t $(PRT_TEST_IMAGE_NAME_ARM) -f Dockerfile.test --build-arg PRT_PACKAGE=$(PRT_ARTIFACT_DIR)/$(PRT_PACKAGE_NAME_DEV_ARM) --build-arg PRT_ROOT=$(PRT_ROOT) . && \
+	docker container run --platform=arm64 --rm -it -v $(shell pwd):/work -w /work -e PRT_ROOT=$(PRT_ROOT) $(PRT_TEST_IMAGE_NAME_ARM) /bin/bash
 
 
 # Build the debian package
@@ -230,15 +230,14 @@ $(FULL_DEB_NAME_X86) $(FULL_DEB_NAME_DEV_X86): $(FULL_PACKAGE_NAME_X86) .builder
 	docker container run --platform=amd64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
 		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 		-v $(shell pwd):/work -w /work \
-		-e PACKAGE="$(PACKAGE_PREFIX)" \
-		-e PACKAGE_ARCH=amd64 \
-		-e PACKAGE_VERSION=$(PACKAGE_VERSION) \
-		-e PACKAGE_DESC="$(PACKAGE_DESC)" \
-		-e PACKAGE_MAINTAINER="$(PACKAGE_MAINTAINER)" \
-		-e PACKAGE_NAME=$(PACKAGE_NAME_X86) \
-		-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_X86) \
+		-e PRT_PACKAGE="$(PRT_PACKAGE_PREFIX)" \
+		-e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) \
+		-e PRT_PACKAGE_DESC="$(PRT_PACKAGE_DESC)" \
+		-e PRT_PACKAGE_MAINTAINER="$(PRT_PACKAGE_MAINTAINER)" \
+		-e PRT_PACKAGE_NAME=$(PRT_PACKAGE_NAME_X86) \
+		-e PRT_PACKAGE_NAME_DEV=$(PRT_PACKAGE_NAME_DEV_X86) \
 		-e PRT_ROOT=$(PRT_ROOT) \
-		$(BUILDER_IMAGE_NAME_X86) \
+		$(PRT_BUILDER_IMAGE_NAME_X86) \
 		./build-deb
 deb-arm: $(FULL_DEB_NAME_ARM)
 deb-dev-arm: $(FULL_DEB_NAME_DEV_ARM)
@@ -246,30 +245,29 @@ $(FULL_DEB_NAME_ARM) $(FULL_DEB_NAME_DEV_ARM): $(FULL_PACKAGE_NAME_ARM) .builder
 	docker container run --platform=arm64 $(INTERACTIVE) --rm $(VERBOSE) $(CACHE_ARG) \
 		-v $(OUTPUT_DIR):/output -e OUTPUT_DIR=/output \
 		-v $(shell pwd):/work -w /work \
-		-e PACKAGE="$(PACKAGE_PREFIX)" \
-		-e PACKAGE_ARCH=arm64 \
-		-e PACKAGE_VERSION=$(PACKAGE_VERSION) \
-		-e PACKAGE_DESC="$(PACKAGE_DESC)" \
-		-e PACKAGE_MAINTAINER="$(PACKAGE_MAINTAINER)" \
-		-e PACKAGE_NAME=$(PACKAGE_NAME_ARM) \
-		-e PACKAGE_NAME_DEV=$(PACKAGE_NAME_DEV_ARM) \
+		-e PRT_PACKAGE="$(PRT_PACKAGE_PREFIX)" \
+		-e PRT_PACKAGE_VERSION=$(PRT_PACKAGE_VERSION) \
+		-e PRT_PACKAGE_DESC="$(PRT_PACKAGE_DESC)" \
+		-e PRT_PACKAGE_MAINTAINER="$(PRT_PACKAGE_MAINTAINER)" \
+		-e PRT_PACKAGE_NAME=$(PRT_PACKAGE_NAME_ARM) \
+		-e PRT_PACKAGE_NAME_DEV=$(PRT_PACKAGE_NAME_DEV_ARM) \
 		-e PRT_ROOT=$(PRT_ROOT) \
-		$(BUILDER_IMAGE_NAME_ARM) \
+		$(PRT_BUILDER_IMAGE_NAME_ARM) \
 		./build-deb
 
 # Clean: remove output files
 clean:
-	$(RM) $(PACKAGE_PREFIX)_*.tgz  $(PACKAGE_PREFIX)_*.json
+	$(RM) $(PRT_ARTIFACT_DIR)/$(PRT_PACKAGE_PREFIX)*
 
 # Clobber: clean output files and delete build containers
 clobber: clean
 	$(RM) -r $(OUTPUT_DIR)
 	$(RM) .builder-image*
-	docker image rm $(BUILDER_IMAGE_NAME_X86) $(BUILDER_IMAGE_NAME_ARM) $(TEST_IMAGE_NAME_X86) $(TEST_IMAGE_NAME_ARM) || true
+	docker image rm $(PRT_BUILDER_IMAGE_NAME_X86) $(PRT_BUILDER_IMAGE_NAME_ARM) $(PRT_TEST_IMAGE_NAME_X86) $(PRT_TEST_IMAGE_NAME_ARM) $(PRT_TEST_DEB_IMAGE_NAME_X86) $(PRT_TEST_DEB_IMAGE_NAME_ARM) || true
 
 # Upload the cache files
 upload-cache:
-	for ff in $$(ls $(OUTPUT_DIR)/cache_*); do curl --upload-file $${ff} $(CACHE_URL)/$$(basename $${ff}); done
+	for ff in $$(ls $(OUTPUT_DIR)/cache_*); do curl --upload-file $${ff} $(PRT_CACHE_URL)/$$(basename $${ff}); done
 
 
 # Print the value of a variable
@@ -356,8 +354,8 @@ help:
 	echo -e "  make run-dev-arm"; \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Cleanup:$(COLOR_RESET)"; \
-	echo -e "  make clean                        Delete the runtime package"; \
-	echo -e "  make clobber                      Delete the runtime package, cache files, and docker images"; \
+	echo -e "  make clean                        Delete the runtime packages"; \
+	echo -e "  make clobber                      Delete the runtime packages, cache files, and docker images"; \
 	echo ""; \
 	echo -e "$(GREEN_BOLD)Misc:$(COLOR_RESET)"; \
 	echo -e "  make upload-cache                 Upload the cache files to the cache server, replacing what is there."; \

@@ -3,6 +3,7 @@ set -euETo pipefail
 shopt -s inherit_errexit
 
 PRT_ROOT=${PRT_ROOT-/prt}
+PRT_PACKAGE_VERSION=${PRT_PACKAGE_VERSION-v0}
 DEV_INSTALL=${DEV_INSTALL-0}
 
 COLOR_ESC="\e["
@@ -83,7 +84,7 @@ echo
 color ${MAGENTA} "===================================================="
 color ${MAGENTA} "               Test runtime version"
 color ${MAGENTA} "===================================================="
-expected_ver=${RUNTIME_VER}
+expected_ver=${PRT_PACKAGE_VERSION}
 actual_ver=$(cat ${PRT_ROOT}/manifest.json | jq -r .runtime_version)
 echo "Expected version=${expected_ver}, actual version=${actual_ver}"
 if [[ "${actual_ver}" != "${expected_ver}" ]]; then

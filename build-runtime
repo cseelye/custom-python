@@ -4,13 +4,13 @@ shopt -s inherit_errexit
 
 SECONDS=0
 
-PYTHON_VERSION=${PYTHON_VERSION-3.11.5}
-PACKAGE_NAME=${PACKAGE_NAME-prt.tgz}
-PACKAGE_NAME_DEV=${PACKAGE_NAME_DEV-prt-dev.tgz}
+PRT_PYTHON_VERSION=${PRT_PYTHON_VERSION-3.11.5}
+PRT_PACKAGE_NAME=${PRT_PACKAGE_NAME-prt.tgz}
+PRT_PACKAGE_NAME_DEV=${PRT_PACKAGE_NAME_DEV-prt-dev.tgz}
 PRT_ROOT=${PRT_ROOT-/prt}
-OUTPUT_DIR=${OUTPUT_DIR-/output}
-RUNTIME_VER=${RUNTIME_VER-v0}
-CACHE_URL=${CACHE_URL:-http://localhost:9000/prt/cache}
+PRT_ARTIFACT_DIR=${PRT_ARTIFACT_DIR-/output}
+PRT_PACKAGE_VERSION=${PRT_PACKAGE_VERSION-v0}
+PRT_CACHE_URL=${PRT_CACHE_URL:-http://localhost:9000/prt/cache}
 MTUNE=${MTUNE-icelake-server}
 USE_CACHE=${USE_CACHE-1}
 USE_PIP_CACHE=${USE_PIP_CACHE-1}
@@ -76,28 +76,28 @@ color ${CYAN} "        Building Python Runtime ${LOCAL_ARCH}"
 color ${CYAN} "===================================================="
 echo
 
-color ${MAGENTA} "* * * Building base python runtime version ${PYTHON_VERSION}"
+color ${MAGENTA} "* * * Building base python runtime version ${PRT_PYTHON_VERSION}"
 ( time (
 mkdir -p "${PRT_ROOT}"
-CACHE_FILE="cache_prt_python_${PYTHON_VERSION}_${LOCAL_ARCH}.tgz"
+CACHE_FILE="cache_prt_python_${PRT_PYTHON_VERSION}_${LOCAL_ARCH}.tgz"
 build_python=0
 if [[ ${USE_CACHE} -ne 1 ]]; then
     build_python=1
 else
 # Try to find/download a cached build of python
-    if [[ -e ${OUTPUT_DIR}/${CACHE_FILE} ]]; then
-        echo "Using local cached build for python ${PYTHON_VERSION}"
-        tar -xzf ${OUTPUT_DIR}/${CACHE_FILE} -C "${PRT_ROOT}"
+    if [[ -e ${PRT_ARTIFACT_DIR}/${CACHE_FILE} ]]; then
+        echo "Using local cached build for python ${PRT_PYTHON_VERSION}"
+        tar -xzf ${PRT_ARTIFACT_DIR}/${CACHE_FILE} -C "${PRT_ROOT}"
         build_python=0
-    elif curl -fsSL --head ${CACHE_URL}/${CACHE_FILE} &>/dev/null; then
-        echo "Downloading cached build for python ${PYTHON_VERSION}"
-        curl -fsSL ${CACHE_URL}/${CACHE_FILE} -o /tmp/${CACHE_FILE}
+    elif curl -fsSL --head ${PRT_CACHE_URL}/${CACHE_FILE} &>/dev/null; then
+        echo "Downloading cached build for python ${PRT_PYTHON_VERSION}"
+        curl -fsSL ${PRT_CACHE_URL}/${CACHE_FILE} -o /tmp/${CACHE_FILE}
         chmod 777 /tmp/${CACHE_FILE}
         tar -xzf /tmp/${CACHE_FILE} -C "${PRT_ROOT}"
-        mv /tmp/${CACHE_FILE} ${OUTPUT_DIR}/${CACHE_FILE}
+        mv /tmp/${CACHE_FILE} ${PRT_ARTIFACT_DIR}/${CACHE_FILE}
         build_python=0
     else
-        echo "Could not find cached build for python ${PYTHON_VERSION}"
+        echo "Could not find cached build for python ${PRT_PYTHON_VERSION}"
         build_python=1
     fi
 fi
@@ -114,16 +114,16 @@ if [[ ${build_python} -eq 1 ]]; then
     fi
 
     if [[ -n "$(find ./${PRT_CONFIG_DIR}/pre-patch -name  "*.patch" 2>/dev/null || true)" ]]; then
-        cat  pre-patch/*.patch | python-build -p ${VERBOSE} ${PYTHON_VERSION} "${PRT_ROOT}"
+        cat  pre-patch/*.patch | python-build -p ${VERBOSE} ${PRT_PYTHON_VERSION} "${PRT_ROOT}"
     else
-        python-build ${VERBOSE} ${PYTHON_VERSION} "${PRT_ROOT}"
+        python-build ${VERBOSE} ${PRT_PYTHON_VERSION} "${PRT_ROOT}"
     fi
     echo
     echo ">>> Updating python cache object"
     tar -czf /tmp/${CACHE_FILE} -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
     chmod 777 /tmp/${CACHE_FILE}
-    mv /tmp/${CACHE_FILE} "${OUTPUT_DIR}/"
-    ls -lh  "${OUTPUT_DIR}/${CACHE_FILE}"
+    mv /tmp/${CACHE_FILE} "${PRT_ARTIFACT_DIR}/"
+    ls -lh  "${PRT_ARTIFACT_DIR}/${CACHE_FILE}"
 fi
 ) ) 2>&1 | indent
 echo
@@ -139,17 +139,18 @@ done
 PIP_CACHE_FILE="cache_prt_pip_${LOCAL_ARCH}.tgz"
 mkdir -p /root/.cache
 if [[ ${USE_PIP_CACHE} -eq 1 ]]; then
-    if [[ -e ${OUTPUT_DIR}/${PIP_CACHE_FILE} ]]; then
+    if [[ -e ${PRT_ARTIFACT_DIR}/${PIP_CACHE_FILE} ]]; then
         echo ">>> Preloading pip cache with local artifact"
-        tar -xzf ${OUTPUT_DIR}/${PIP_CACHE_FILE} -C /root/.cache
-    elif curl -fsSL --head ${CACHE_URL}/${PIP_CACHE_FILE} &>/dev/null; then
+        tar -xzf ${PRT_ARTIFACT_DIR}/${PIP_CACHE_FILE} -C /root/.cache
+    elif curl -fsSL --head ${PRT_CACHE_URL}/${PIP_CACHE_FILE} &>/dev/null; then
         echo ">>> Preloading pip cache with downloaded artifact"
-        curl -fsSL ${CACHE_URL}/${PIP_CACHE_FILE} | tar -xz -C /root/.cache || true
+        curl -fsSL ${PRT_CACHE_URL}/${PIP_CACHE_FILE} | tar -xz -C /root/.cache || true
     fi
     echo
 fi
 
 # Configure and upgrade pip
+echo ">>> Updating pip"
 cp ./pip.conf "${PRT_ROOT}"
 "${PRT_ROOT}"/bin/pip install --upgrade pip
 # Install python packages
@@ -181,13 +182,13 @@ echo ">>> Updating pip cache object"
 echo
 tar -czf /tmp/${PIP_CACHE_FILE} -C /root/.cache pip
 chmod 777 /tmp/${PIP_CACHE_FILE}
-mv /tmp/${PIP_CACHE_FILE} ${OUTPUT_DIR}/
+mv /tmp/${PIP_CACHE_FILE} ${PRT_ARTIFACT_DIR}/
 echo
 ) 2>&1 | indent
 
 # Create a manifest
 "${PRT_ROOT}"/bin/pip list --format=json | jq '{"python_packages": .}' \
-    | jq '. += {"python_version": "'${PYTHON_VERSION}'", "runtime_version": "'${RUNTIME_VER}'"}' \
+    | jq '. += {"python_version": "'${PRT_PYTHON_VERSION}'", "runtime_version": "'${PRT_PACKAGE_VERSION}'"}' \
     > "${PRT_ROOT}"/manifest.json
 
 # Create the package archive
@@ -196,10 +197,10 @@ tmpfile="$(mktemp)"
 ( time (
 tar -czf "${tmpfile}" -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
 chmod 777 "${tmpfile}"
-mv "${tmpfile}" "${OUTPUT_DIR}/${PACKAGE_NAME}"
-cp "${PRT_ROOT}/manifest.json" "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}.manifest.json"
-chmod 664 "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}.manifest.json"
-ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME%%.*}"*
+mv "${tmpfile}" "${PRT_ARTIFACT_DIR}/${PRT_PACKAGE_NAME}"
+cp "${PRT_ROOT}/manifest.json" "${PRT_ARTIFACT_DIR}/${PRT_PACKAGE_NAME%%.*}.manifest.json"
+chmod 664 "${PRT_ARTIFACT_DIR}/${PRT_PACKAGE_NAME%%.*}.manifest.json"
+ls -lh "${PRT_ARTIFACT_DIR}/${PRT_PACKAGE_NAME%%.*}"*
 ) ) 2>&1 | indent
 
 
@@ -221,12 +222,12 @@ done
 PIP_DEV_CACHE_FILE="cache_prt_dev_pip_${LOCAL_ARCH}.tgz"
 mkdir -p /root/.cache
 if [[ ${USE_PIP_CACHE} -eq 1 ]]; then
-    if [[ -e ${OUTPUT_DIR}/${PIP_DEV_CACHE_FILE} ]]; then
+    if [[ -e ${PRT_ARTIFACT_DIR}/${PIP_DEV_CACHE_FILE} ]]; then
         echo ">>> Preloading dev pip cache with local artifact"
-        tar -xzf ${OUTPUT_DIR}/${PIP_DEV_CACHE_FILE} -C /root/.cache
-    elif curl -fsSL --head ${CACHE_URL}/${PIP_DEV_CACHE_FILE} &>/dev/null; then
+        tar -xzf ${PRT_ARTIFACT_DIR}/${PIP_DEV_CACHE_FILE} -C /root/.cache
+    elif curl -fsSL --head ${PRT_CACHE_URL}/${PIP_DEV_CACHE_FILE} &>/dev/null; then
         echo ">>> Preloading dev pip cache with downloaded artifact"
-        curl -fsSL ${CACHE_URL}/${PIP_DEV_CACHE_FILE} | tar -xz -C /root/.cache || true
+        curl -fsSL ${PRT_CACHE_URL}/${PIP_DEV_CACHE_FILE} | tar -xz -C /root/.cache || true
     fi
     echo
 fi
@@ -259,13 +260,13 @@ echo ">>> Updating dev pip cache object"
 echo
 tar -czf /tmp/${PIP_DEV_CACHE_FILE} -C /root/.cache pip
 chmod 777 /tmp/${PIP_DEV_CACHE_FILE}
-mv /tmp/${PIP_DEV_CACHE_FILE} ${OUTPUT_DIR}/
+mv /tmp/${PIP_DEV_CACHE_FILE} ${PRT_ARTIFACT_DIR}/
 echo
 ) 2>&1 | indent
 
 # Create manifest
 "${PRT_ROOT}"/bin/pip list --format=json | jq '{"python_packages": .}' \
-    | jq '. += {"python_version": "'${PYTHON_VERSION}'", "runtime_version": "'${RUNTIME_VER}'"}' \
+    | jq '. += {"python_version": "'${PRT_PYTHON_VERSION}'", "runtime_version": "'${PRT_PACKAGE_VERSION}'"}' \
     > "${PRT_ROOT}"/manifest.json
 
 # Create the package archive
@@ -274,10 +275,10 @@ tmpfile="$(mktemp)"
 ( time (
 tar -czf "${tmpfile}" -C "${PRT_ROOT}" $(ls -A "${PRT_ROOT}")
 chmod 777 "${tmpfile}"
-mv "${tmpfile}" "${OUTPUT_DIR}/${PACKAGE_NAME_DEV}"
-cp "${PRT_ROOT}/manifest.json" "${OUTPUT_DIR}/${PACKAGE_NAME_DEV%%.*}.manifest.json"
-chmod 664 "${OUTPUT_DIR}/${PACKAGE_NAME_DEV%%.*}.manifest.json"
-ls -lh "${OUTPUT_DIR}/${PACKAGE_NAME_DEV%%.*}"*
+mv "${tmpfile}" "${PRT_ARTIFACT_DIR}/${PRT_PACKAGE_NAME_DEV}"
+cp "${PRT_ROOT}/manifest.json" "${PRT_ARTIFACT_DIR}/${PRT_PACKAGE_NAME_DEV%%.*}.manifest.json"
+chmod 664 "${PRT_ARTIFACT_DIR}/${PRT_PACKAGE_NAME_DEV%%.*}.manifest.json"
+ls -lh "${PRT_ARTIFACT_DIR}/${PRT_PACKAGE_NAME_DEV%%.*}"*
 ) ) 2>&1 | indent
 
 
